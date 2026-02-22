@@ -17,17 +17,17 @@ import { type CodeAnalysisResult, type SortingListComparison } from '../pyodide/
 
 import { Bar } from './Bar.tsx';
 
-type Movement = {
+/*type Movement = {
 	identifier: number,
 	oldPosition: number,
 	newPosition: number
-};
+};*/
 
 // TODO: Is this really necessary?! Is TargetPositions enough after all?
-type SortingListMovementSet = {
+/*type SortingListMovementSet = {
 	targetSortingList: SortingElement[],
 	movements: { [identifier: number]: Movement }
-};
+};*/
 
 type MountedBars = {
 	[identifier: number]: THREE.Mesh
@@ -53,15 +53,13 @@ export function BarsSortingScene() {
 		[ActiveSortingListComparison, React.Dispatch<React.SetStateAction<ActiveSortingListComparison>>] =
 			useState<ActiveSortingListComparison>(null);
 
-	const valueUniverse: Set<number> = new Set(sortingList.map(element => element.value));
-
 	const bounds = determineBounds(sortingList);
 
 	const mountedBarsRef: RefObject<MountedBars> = useRef({});
-	const sortingListMovementSetRef: RefObject<SortingListMovementSet> = useRef({
+	/*const sortingListMovementSetRef: RefObject<SortingListMovementSet> = useRef({
 		targetSortingList: sortingList,
 		movements: {}
-	});
+	});*/
 	const targetPositionsRef: RefObject<TargetPositions> = useRef({});
 
 	const registerBar = useCallback((identifier: number, barMesh: THREE.Mesh) => {
@@ -72,12 +70,12 @@ export function BarsSortingScene() {
 		}
 	}, []);
 
-	useEffect(() => {
+	/*useEffect(() => {
 		sortingListMovementSetRef.current = {
 			targetSortingList: sortingList,
 			movements: {}
 		};
-	}, [sortingList]);
+	}, [sortingList]);*/
 
 	useEffect(() => {
 		const unsubscribe = useControlStore.subscribe(
@@ -123,8 +121,11 @@ export function BarsSortingScene() {
 
 	useEffect(() => {
 		const unsubscribe = useControlStore.subscribe(
-			state => state.executionState,
-			(executionState: ExecutionState) => {
+			state => [
+				state.sortingList,
+				state.executionState
+			] as const,
+			([sortingList, executionState]) => {
 				if (executionState !== 'stopped') {
 					return;
 				}
@@ -152,6 +153,10 @@ export function BarsSortingScene() {
 //			const targetPosition = sortingListMovementSet.movements[identifier].newPosition;
 			const targetPosition = targetPositionsRef.current[identifier];
 
+			if (barMesh == null) {
+				continue;
+			}
+
 			if (Math.abs(targetPosition - barMesh.position.x) < STABILIZATION_THRESHOLD) {
 				barMesh.position.x = targetPosition;
 				delete targetPositionsRef.current[identifier];
@@ -178,7 +183,6 @@ export function BarsSortingScene() {
 					value={element.value}
 					minimumValue={bounds.minimum}
 					maximumValue={bounds.maximum}
-					valueUniverse={valueUniverse}
 					focused={
 						!focusComparedBars ||
 						activeComparison == null ||

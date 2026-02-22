@@ -9,7 +9,6 @@ type BarProps = {
 	value: number,
 	minimumValue: number,
 	maximumValue: number,
-	valueUniverse: Set<number>,
 	focused: boolean,
 	colored?: boolean
 };
