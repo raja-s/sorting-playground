@@ -9,6 +9,8 @@ import {
 } from '../state/useControlStore.ts';
 import { type CodeAnalysisResult, type TrackedVariable } from '../pyodide/codeAnalysis.ts';
 
+import { JETBRAINS_MONO_FONT_PATH } from './fonts.ts';
+
 export function SortingIndices() {
 	const pythonCodeAnalysisResult: CodeAnalysisResult = useControlStore(state => state.pythonCodeAnalysisResult);
 	const executionHistory: ExecutionCheckpoint[] = useControlStore(state => state.executionHistory);
@@ -47,7 +49,7 @@ export function SortingIndices() {
 								</mesh>
 								<Text
 									position={[0, -0.5, 0]}
-									font='/fonts/JetBrainsMono-VariableFont_wght.ttf'
+									font={JETBRAINS_MONO_FONT_PATH}
 									fontSize={0.4}
 									color={color}
 								>{variable.name} = {value}</Text>

@@ -11,7 +11,9 @@ import { BarsSortingScene } from './BarsSortingScene.tsx';
 import { SmoothCamera } from './SmoothCamera.tsx';
 import { SortingIndices } from './SortingIndices.tsx';
 
-useFont.preload('/fonts/JetBrainsMono-VariableFont_wght.ttf');
+import { JETBRAINS_MONO_FONT_PATH } from './fonts.ts';
+
+useFont.preload(JETBRAINS_MONO_FONT_PATH);
 
 export function DemoView() {
 	const groupRef: RefObject<THREE.Group> = useRef<THREE.Group>();
@@ -40,7 +42,7 @@ function getDummyText() {
 	// A hack to avoid flickering when the first text appears
 	return (
 		<Text
-			font='/fonts/JetBrainsMono-VariableFont_wght.ttf'
+			font={JETBRAINS_MONO_FONT_PATH}
 			visible={false}
 		>0123456789= abcdefghijklmnopqrstuvwxyz</Text>
 	);
