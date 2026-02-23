@@ -1,0 +1,36 @@
+{
+	"code": {
+		"starting_list_variable_name": "values",
+		"list_variable_comment": "# The first statement must define a\n# variable as a list (of int or str)",
+		"to_do_comment": "# Sort the list here..."
+	},
+	"control_bar": {
+		"code_controls": {
+			"open_button": "Open",
+			"download_button": "Download",
+			"share_button": "Share"
+		},
+		"main_execution_controls": {
+			"execution_speed": "Execution speed",
+			"run_button": "Run",
+			"pause_button": "Pause",
+			"stop_button": "Stop",
+			"reset_button": "Reset"
+		},
+		"manual_execution_controls": {
+			"step_backward_button": "Step backward",
+			"step_forward_button": "Step forward"
+		},
+		"sorting_element_type_dropdown": {
+			"bars": "Bars",
+			"cards": "Cards"
+		},
+		"sorting_element_type_specific_controls": {
+			"bar_controls": {
+				"colored": "Colored",
+				"focus_compared_bars": "Focus compared bars"
+			},
+			"card_controls": {}
+		}
+	}
+}
