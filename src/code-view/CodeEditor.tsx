@@ -17,6 +17,8 @@ import { python } from '@codemirror/lang-python';
 
 import ReactCodeEditor from '@uiw/react-codemirror';
 
+import { useTranslation } from 'react-i18next';
+
 import {
 	type ExecutionCheckpoint,
 	type ExecutionState,
@@ -39,24 +41,7 @@ type State = {
 	longestLineLength: number
 };
 
-const startingListVariableName: string = 'values';
 const startingList: number[] = [1, 8, 2, 5, 3, 9, 6, 4, 7];
-
-const startingCode: string = `# The first statement must define a
-# variable as a list (of int or str)
-${startingListVariableName} = ${codify(startingList)}
-
-# Sort the list here...
-`;
-
-const initialState: State = {
-	sortingListVariableName: '',
-	sortingListSourceCodeStart: -1,
-	sortingListSourceCodeEnd: -1,
-	sortingList: [],
-	lineCount: 1,
-	longestLineLength: 0
-};
 
 const executionStartLineDecoration = Decoration.line({
 	attributes: { class: 'cm-executionStartLine' }
@@ -148,6 +133,8 @@ const executingLineField = StateField.define({
 export function CodeEditor() {
 	const muiTheme: MuiTheme = useTheme();
 
+	const translate = useTranslation().t;
+
 	const editorViewRef: RefObject<EditorView> = useRef(null as unknown as EditorView);
 
 	const setSortingListData = useControlStore(state => state.setSortingListData);
@@ -158,10 +145,26 @@ export function CodeEditor() {
 	const executionHistoryPosition = useControlStore(state => state.executionHistoryPosition);
 	const executionState = useControlStore(state => state.executionState);
 
-	const [state, setState] = useState<State>(initialState);
+	const startingListVariableName: string = translate('code.starting_list_variable_name');
+	const startingCode: string = `${translate('code.list_variable_comment')}
+${startingListVariableName} = ${codify(startingList)}
+
+${translate('code.to_do_comment')}
+	`;
+
+	const startingCodeLines: string[] = startingCode.split('\n');
+
+	const [state, setState] = useState<State>({
+		sortingListVariableName: startingListVariableName,
+		sortingListSourceCodeStart: startingCode.indexOf('['),
+		sortingListSourceCodeEnd: startingCode.indexOf(']') + 1,
+		sortingList: startingList,
+		lineCount: startingCodeLines.length,
+		longestLineLength: Math.max(...startingCodeLines.map(line => line.length))
+	});
 
 	useEffect(() => {
-		setInitialState(setActivePythonCode, setState);
+		setActivePythonCode(startingCode);
 	}, []);
 
 	useEffect(
@@ -222,24 +225,6 @@ export function CodeEditor() {
 			style={{ maxHeight: '100%' }}
 		/>
 	);
-}
-
-function setInitialState(
-	setActivePythonCode: (code: string) => void,
-	setState: React.Dispatch<React.SetStateAction<State>>
-): void {
-	setActivePythonCode(startingCode);
-
-	const lines: string[] = startingCode.split('\n');
-
-	setState({
-		sortingListVariableName: startingListVariableName,
-		sortingListSourceCodeStart: startingCode.indexOf('['),
-		sortingListSourceCodeEnd: startingCode.indexOf(']') + 1,
-		sortingList: startingList,
-		lineCount: lines.length,
-		longestLineLength: Math.max(...lines.map(line => line.length))
-	});
 }
 
 function handleCodeEditorChange(

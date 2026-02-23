@@ -6,6 +6,8 @@ import CssBaseline from '@mui/material/CssBaseline';
 
 import theme from './theme.ts';
 
+import './i18n.ts';
+
 import App from './App.tsx';
 
 createRoot(document.getElementById('root')!).render(

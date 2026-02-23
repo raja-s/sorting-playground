@@ -1,0 +1,36 @@
+{
+	"code": {
+		"starting_list_variable_name": "valeurs",
+		"list_variable_comment": "# La première instruction doit définir une\n# variable comme une liste (de int ou str)",
+		"to_do_comment": "# Trier la liste ici..."
+	},
+	"control_bar": {
+		"code_controls": {
+			"open_button": "Ouvrir",
+			"download_button": "Télécharger",
+			"share_button": "Partager"
+		},
+		"main_execution_controls": {
+			"execution_speed": "Vitesse d'exécution",
+			"run_button": "Lancer",
+			"pause_button": "Suspendre",
+			"stop_button": "Arrêter",
+			"reset_button": "Réinitialiser"
+		},
+		"manual_execution_controls": {
+			"step_backward_button": "Reculer d'une instruction",
+			"step_forward_button": "Avancer d'une instruction"
+		},
+		"sorting_element_type_dropdown": {
+			"bars": "Barres",
+			"cards": "Cartes"
+		},
+		"sorting_element_type_specific_controls": {
+			"bar_controls": {
+				"colored": "Colorées",
+				"focus_compared_bars": "Mettre en évidence les barres comparées"
+			},
+			"card_controls": {}
+		}
+	}
+}

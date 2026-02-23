@@ -109,6 +109,13 @@ export default createTheme({
 					fontSize: '1.2rem'
 				}
 			}
+		},
+		MuiFormControlLabel: {
+			styleOverrides: {
+				root: {
+					marginRight: 0
+				}
+			}
 		}
 	},
 	shape: {

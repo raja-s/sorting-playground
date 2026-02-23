@@ -23,9 +23,13 @@ import ShareIcon from '@mui/icons-material/Share';
 import StopIcon from '@mui/icons-material/Stop';
 import UndoIcon from '@mui/icons-material/Undo';
 
+import { useTranslation } from 'react-i18next';
+
 import { ControlIconButton } from './ControlIconButton.tsx';
 
 export function ControlBar() {
+	const translate = useTranslation().t;
+
 	const readyToExecuteCode = useControlStore(state => state.readyToExecuteCode);
 
 	const executionHistory = useControlStore(state => state.executionHistory);
@@ -65,17 +69,17 @@ export function ControlBar() {
 					direction='row'
 					columnGap='10px'
 				>
-					<Tooltip title='Open'>
+					<Tooltip title={translate('control_bar.code_controls.open_button')}>
 						<IconButton>
 							<FolderIcon fontSize='large' />
 						</IconButton>
 					</Tooltip>
-					<Tooltip title='Download'>
+					<Tooltip title={translate('control_bar.code_controls.download_button')}>
 						<IconButton>
 							<DownloadIcon fontSize='large' />
 						</IconButton>
 					</Tooltip>
-					<Tooltip title='Share'>
+					<Tooltip title={translate('control_bar.code_controls.share_button')}>
 						<IconButton>
 							<ShareIcon fontSize='large' />
 						</IconButton>
@@ -85,7 +89,7 @@ export function ControlBar() {
 				<Stack
 					sx={{ width: 300 }}
 				>
-					<Typography>Execution speed</Typography>
+					<Typography>{translate('control_bar.main_execution_controls.execution_speed')}</Typography>
 					<Slider
 						min={1}
 						max={10}
@@ -103,7 +107,7 @@ export function ControlBar() {
 					<ControlIconButton
 						contained
 						color='run'
-						tooltipTitle='Run'
+						tooltipTitle={translate('control_bar.main_execution_controls.run_button')}
 						disabled={
 							!readyToExecuteCode ||
 							executionState === 'running' || (
@@ -117,7 +121,7 @@ export function ControlBar() {
 					</ControlIconButton>
 					<ControlIconButton
 						color='pause'
-						tooltipTitle='Pause'
+						tooltipTitle={translate('control_bar.main_execution_controls.pause_button')}
 						disabled={executionState !== 'running'}
 						onClick={pauseExecution}
 					>
@@ -126,7 +130,9 @@ export function ControlBar() {
 					<ControlIconButton
 						contained={executionState !== 'finished'}
 						color='stop'
-						tooltipTitle={executionState === 'finished' ? 'Reset' : 'Stop'}
+						tooltipTitle={executionState === 'finished' ?
+							translate('control_bar.main_execution_controls.reset_button') :
+							translate('control_bar.main_execution_controls.stop_button')}
 						disabled={executionState === 'stopped'}
 						onClick={() => {
 							if (executionState === 'finished') {
@@ -149,7 +155,7 @@ export function ControlBar() {
 				>
 					<ControlIconButton
 						color='secondary'
-						tooltipTitle='Step backward'
+						tooltipTitle={translate('control_bar.manual_execution_controls.step_backward_button')}
 						disabled={
 							executionState === 'running' || executionState === 'stopped' ||
 							executionHistoryPosition === 0
@@ -160,7 +166,7 @@ export function ControlBar() {
 					</ControlIconButton>
 					<ControlIconButton
 						color='run'
-						tooltipTitle='Step forward'
+						tooltipTitle={translate('control_bar.manual_execution_controls.step_forward_button')}
 						disabled={
 							!readyToExecuteCode ||
 							executionState === 'running' || (
@@ -183,11 +189,11 @@ export function ControlBar() {
 						hiddenLabel
 						value='bars'
 					>
-						<MenuItem value='bars'>Bars</MenuItem>
-						<MenuItem value='cards'>Cards</MenuItem>
+						<MenuItem value='bars'>{translate('control_bar.sorting_element_type_dropdown.bars')}</MenuItem>
+						<MenuItem value='cards'>{translate('control_bar.sorting_element_type_dropdown.cards')}</MenuItem>
 					</Select>
 					<FormControlLabel
-						label='Colored'
+						label={translate('control_bar.sorting_element_type_specific_controls.bar_controls.colored')}
 						control={
 							<Checkbox
 								checked={barsColored}
@@ -197,7 +203,7 @@ export function ControlBar() {
 						sx={{ marginLeft: 0 }}
 					/>
 					<FormControlLabel
-						label='Focus compared bars'
+						label={translate('control_bar.sorting_element_type_specific_controls.bar_controls.focus_compared_bars')}
 						control={
 							<Checkbox
 								checked={focusComparedBars}
