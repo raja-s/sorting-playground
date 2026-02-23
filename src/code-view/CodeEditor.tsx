@@ -17,8 +17,6 @@ import { python } from '@codemirror/lang-python';
 
 import ReactCodeEditor from '@uiw/react-codemirror';
 
-import { useTranslation } from 'react-i18next';
-
 import {
 	type ExecutionCheckpoint,
 	type ExecutionState,
@@ -31,17 +29,6 @@ import {
 } from '../pyodide/codeAnalysis.ts';
 
 import { useTheme, type Theme as MuiTheme } from '@mui/material/styles';
-
-type State = {
-	sortingListVariableName: string,
-	sortingListSourceCodeStart: number,
-	sortingListSourceCodeEnd: number,
-	sortingList: number[],
-	lineCount: number,
-	longestLineLength: number
-};
-
-const startingList: number[] = [1, 8, 2, 5, 3, 9, 6, 4, 7];
 
 const executionStartLineDecoration = Decoration.line({
 	attributes: { class: 'cm-executionStartLine' }
@@ -130,10 +117,24 @@ const executingLineField = StateField.define({
 	]
 });
 
-export function CodeEditor() {
-	const muiTheme: MuiTheme = useTheme();
+type CodeEditorProps = {
+	startingList: number[],
+	startingListVariableName: string,
+	startingCode: string,
+	startingCodeLines: string[],
+};
 
-	const translate = useTranslation().t;
+type State = {
+	sortingListVariableName: string,
+	sortingListSourceCodeStart: number,
+	sortingListSourceCodeEnd: number,
+	sortingList: number[],
+	lineCount: number,
+	longestLineLength: number
+};
+
+export function CodeEditor(props: CodeEditorProps) {
+	const muiTheme: MuiTheme = useTheme();
 
 	const editorViewRef: RefObject<EditorView> = useRef(null as unknown as EditorView);
 
@@ -145,26 +146,17 @@ export function CodeEditor() {
 	const executionHistoryPosition = useControlStore(state => state.executionHistoryPosition);
 	const executionState = useControlStore(state => state.executionState);
 
-	const startingListVariableName: string = translate('code.starting_list_variable_name');
-	const startingCode: string = `${translate('code.list_variable_comment')}
-${startingListVariableName} = ${codify(startingList)}
-
-${translate('code.to_do_comment')}
-	`;
-
-	const startingCodeLines: string[] = startingCode.split('\n');
-
 	const [state, setState] = useState<State>({
-		sortingListVariableName: startingListVariableName,
-		sortingListSourceCodeStart: startingCode.indexOf('['),
-		sortingListSourceCodeEnd: startingCode.indexOf(']') + 1,
-		sortingList: startingList,
-		lineCount: startingCodeLines.length,
-		longestLineLength: Math.max(...startingCodeLines.map(line => line.length))
+		sortingListVariableName: props.startingListVariableName,
+		sortingListSourceCodeStart: props.startingCode.indexOf('['),
+		sortingListSourceCodeEnd: props.startingCode.indexOf(']') + 1,
+		sortingList: props.startingList,
+		lineCount: props.startingCodeLines.length,
+		longestLineLength: Math.max(...props.startingCodeLines.map(line => line.length))
 	});
 
 	useEffect(() => {
-		setActivePythonCode(startingCode);
+		setActivePythonCode(props.startingCode);
 	}, []);
 
 	useEffect(
@@ -216,7 +208,7 @@ ${translate('code.to_do_comment')}
 			onCreateEditor={view => {
 				editorViewRef.current = view;
 			}}
-			value={startingCode}
+			value={props.startingCode}
 			readOnly={executionState !== 'stopped'}
 			editable={executionState === 'stopped'}
 			basicSetup={{ foldGutter : false }}
@@ -463,8 +455,4 @@ function getCodeEditorTheme(muiTheme: MuiTheme, state: State) {
 			backgroundColor: 'transparent'
 		}
 	});
-}
-
-function codify(list: number[]): string {
-	return `[${list.join(', ')}]`;
 }
