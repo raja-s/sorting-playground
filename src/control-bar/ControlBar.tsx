@@ -203,7 +203,7 @@ export function ControlBar() {
 						sx={{ marginLeft: 0 }}
 					/>
 					<FormControlLabel
-						label={translate('control_bar.sorting_element_type_specific_controls.bar_controls.focus_compared_bars')}
+						label={translate('control_bar.sorting_element_type_specific_controls.bar_controls.focus_compared_elements')}
 						control={
 							<Checkbox
 								checked={focusComparedBars}
