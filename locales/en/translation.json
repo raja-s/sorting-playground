@@ -28,7 +28,7 @@
 		"sorting_element_type_specific_controls": {
 			"bar_controls": {
 				"colored": "Colored",
-				"focus_compared_bars": "Focus compared bars"
+				"focus_compared_elements": "Focus compared elements"
 			},
 			"card_controls": {}
 		}

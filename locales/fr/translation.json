@@ -28,7 +28,7 @@
 		"sorting_element_type_specific_controls": {
 			"bar_controls": {
 				"colored": "Colorées",
-				"focus_compared_bars": "Mettre en évidence les barres comparées"
+				"focus_compared_elements": "Mettre en évidence les éléments comparés"
 			},
 			"card_controls": {}
 		}
