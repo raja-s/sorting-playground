@@ -26,8 +26,10 @@ def save_execution_checkpoint_and_pause(line_number: int, scope_locals: dict):
         'sortingList': None
     }
 
-    if 'SORTING_LIST_VARIABLE_NAME' in scope_locals:
-        checkpoint['sortingList'] = scope_locals['SORTING_LIST_VARIABLE_NAME']
+    scope_globals = globals()
+
+    if 'SORTING_LIST_VARIABLE_NAME' in scope_globals:
+        checkpoint['sortingList'] = scope_globals['SORTING_LIST_VARIABLE_NAME']
 
     with open('/execution-control/checkpoint.json', 'w') as checkpoint_file:
         json.dump(checkpoint, checkpoint_file, indent='\t', default=str)
