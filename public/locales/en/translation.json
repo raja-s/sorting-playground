@@ -1,7 +1,7 @@
 {
 	"code": {
 		"starting_list_variable_name": "values",
-		"list_variable_comment": "# The first statement must define a\n# variable as a list (of int or str)",
+		"list_variable_comment": "# The first statement must define a\n# variable as a list (of int)",
 		"to_do_comment": "# Sort the list here..."
 	},
 	"control_bar": {

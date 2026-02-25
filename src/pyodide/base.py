@@ -34,4 +34,8 @@ def save_execution_checkpoint_and_pause(line_number: int, scope_locals: dict):
 
     input()
 
-##### User Code #####
+try:
+    ##### User Code #####
+#USER_CODE_INSERTION_HANDLE#
+except KeyboardInterrupt:
+    pass

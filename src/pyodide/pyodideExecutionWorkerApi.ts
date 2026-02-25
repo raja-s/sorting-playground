@@ -16,3 +16,8 @@ export const CONTROL_BUFFER_VALUES = {
 	waitingForData: 0,
 	dataAvailable: 1
 }
+
+export const INTERRUPT_BUFFER_VALUES = {
+	continue: 0,
+	interrupt: 2
+}

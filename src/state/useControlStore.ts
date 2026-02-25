@@ -2,9 +2,20 @@
 import { create } from 'zustand';
 import { subscribeWithSelector } from 'zustand/middleware';
 
-import { MESSAGE_TYPES, CONTROL_BUFFER_VALUES } from '../pyodide/pyodideExecutionWorkerApi.ts';
+import {
+	MESSAGE_TYPES,
+	CONTROL_BUFFER_VALUES,
+	INTERRUPT_BUFFER_VALUES
+} from '../pyodide/pyodideExecutionWorkerApi.ts';
 
-import { type CodeAnalysisResult, analyzePythonCode } from '../pyodide/codeAnalysis.ts';
+import { type CodeAnalysisResult, analyzePythonCode } from '../pyodide/code-analysis/codeAnalysis.ts';
+
+export type ConsoleContentType = 'standard_output' | 'error';
+
+export type ConsoleContent = {
+	text: string,
+	type: ConsoleContentType
+};
 
 export type SortingElement = {
 	identifier: number,
@@ -38,6 +49,9 @@ export interface ControlState {
 
 	activePythonCode: string;
 	setActivePythonCode: (code: string) => void;
+
+	consoleContent: ConsoleContent[];
+	appendToConsole: (content: ConsoleContent) => void;
 
 	pythonCodeAnalysisResult: CodeAnalysisResult;
 
@@ -73,6 +87,7 @@ type SetState = (
 
 const controlBuffer: Int32Array = new Int32Array(new SharedArrayBuffer(4));
 const dataBuffer: Uint8Array = new Uint8Array(new SharedArrayBuffer(4096));
+const interruptBuffer: Uint8Array = new Uint8Array(new SharedArrayBuffer(1));
 
 let resumeExecutionTimeoutIdentifier: number = -1;
 
@@ -110,9 +125,20 @@ export const useControlStore =
 			activePythonCode: '',
 			setActivePythonCode: (code: string) => { setState({ activePythonCode: code }); },
 
+			consoleContent: [],
+			appendToConsole: (content: ConsoleContent) => {
+				setState((state: ControlState) => ({
+					consoleContent: state.consoleContent.concat([ content ])
+				}));
+			},
+
 			pythonCodeAnalysisResult: {
 				trackedVariableMap: {},
-				comparisonMap: {}
+				comparisonMap: {},
+				instrumentationResult: {
+					instrumentedCode: '',
+					lineNumberMapping: {}
+				}
 			},
 
 			executionHistory: [],
@@ -183,10 +209,10 @@ function initializePythonExecutionWorker(
 				handleEnvironmentInitialized(setState);
 				break;
 			case MESSAGE_TYPES.standardOutput:
-				handleStandardOutput(event.data.output);
+				handleStandardOutput(getState, event.data.output);
 				break;
 			case MESSAGE_TYPES.errorOutput:
-				handleErrorOutput(event.data.output);
+				handleErrorOutput(getState, event.data.output);
 				break;
 			case MESSAGE_TYPES.executionFinished:
 				handleExecutionFinished(setState);
@@ -212,12 +238,18 @@ function handleEnvironmentInitialized(setState: SetState) {
 	reassessReadyToExecuteCode(setState);
 }
 
-function handleStandardOutput(output: string) {
-	console.log(output);
+function handleStandardOutput(getState: GetState, output: string) {
+	getState().appendToConsole({
+		text: output,
+		type: 'standard_output'
+	});
 }
 
-function handleErrorOutput(output: string) {
-	console.error(output);
+function handleErrorOutput(getState: GetState, output: string) {
+	getState().appendToConsole({
+		text: output,
+		type: 'error'
+	});
 }
 
 function handleExecutionFinished(setState: SetState) {
@@ -268,12 +300,28 @@ function runExecution(getState: GetState, setState: SetState): void {
 }
 
 function startExecution(getState: GetState, setState: SetState): void {
-	setState((state: ControlState) => ({
-		pythonCodeAnalysisResult: analyzePythonCode(
-			state.activePythonCode,
-			state.sortingListVariableName
-		)
-	}));
+	try {
+		setState((state: ControlState) => ({
+			pythonCodeAnalysisResult: analyzePythonCode(
+				state.activePythonCode,
+				state.sortingListVariableName,
+				state.sortingListSourceCodeStart,
+				state.sortingListSourceCodeEnd
+			)
+		}));
+	} catch (error) {
+		setState({
+			consoleContent: [{
+				text: error.message,
+				type: 'error'
+			}],
+			executionState: 'finished'
+		});
+		return;
+	}
+
+	Atomics.store(interruptBuffer, 0, INTERRUPT_BUFFER_VALUES.continue);
+	Atomics.store(controlBuffer, 0, CONTROL_BUFFER_VALUES.waitingForData);
 
 	const state: ControlState = getState();
 
@@ -281,10 +329,8 @@ function startExecution(getState: GetState, setState: SetState): void {
 		type: MESSAGE_TYPES.executePythonCode,
 		controlBuffer,
 		dataBuffer,
-		pythonCode: state.activePythonCode,
-		sortingListVariableName: state.sortingListVariableName,
-		sortingListSourceCodeStart: state.sortingListSourceCodeStart,
-		sortingListSourceCodeEnd: state.sortingListSourceCodeEnd
+		interruptBuffer,
+		instrumentedCode: state.pythonCodeAnalysisResult.instrumentationResult.instrumentedCode
 	});
 }
 
@@ -317,6 +363,8 @@ function pauseExecution(setState: SetState): void {
 function stopExecution(setState: SetState): void {
 	resetExecution(setState);
 
+	Atomics.store(interruptBuffer, 0, INTERRUPT_BUFFER_VALUES.interrupt);
+
 	Atomics.store(controlBuffer, 0, CONTROL_BUFFER_VALUES.stopExecution);
 	Atomics.notify(controlBuffer, 0);
 }
@@ -325,6 +373,7 @@ function resetExecution(setState: SetState): void {
 	clearTimeout(resumeExecutionTimeoutIdentifier);
 
 	setState({
+		consoleContent: [],
 		executionHistory: [],
 		executionHistoryPosition: 0,
 		executionState: 'stopped'

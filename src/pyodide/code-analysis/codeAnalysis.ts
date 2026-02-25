@@ -1,5 +1,9 @@
 
-import { type ASTNodeUnion, NodeVisitor, iterChildNodes, parse } from 'py-ast';
+import { type ASTNodeUnion, NodeVisitor, parse } from 'py-ast';
+
+import NodeEndsSetterVisitor from './NodeEndsSetterVisitor.ts';
+
+import { type InstrumentationResult, instrumentCode } from './instrumentation.ts';
 
 export type TrackedVariable = {
 	name: string,
@@ -25,78 +29,14 @@ export type SortingListComparisonMap = {
 
 export type CodeAnalysisResult = {
 	trackedVariableMap: TrackedVariableMap,
-	comparisonMap: SortingListComparisonMap
+	comparisonMap: SortingListComparisonMap,
+	instrumentationResult: InstrumentationResult
 };
-
-class NodeEndsSetterVisitor extends NodeVisitor {
-
-	private readonly sourceCodeLines: string[];
-
-	constructor(sourceCode: string) {
-		super();
-		this.sourceCodeLines = sourceCode.split('\n');
-	}
-
-	visit(node: ASTNodeUnion): void {
-		super.visit(node);
-
-		let endLineNumber: number = node.lineno || -1;
-		let endColumnOffset: number = node.col_offset || -1;
-
-		if (node.nodeType === 'Name') {
-			endColumnOffset += node.id.length;
-		} else if (node.nodeType === 'Constant') {
-			endColumnOffset += node.value.toString().length;
-		}
-
-		for (const child of iterChildNodes(node)) {
-			if (child.end_lineno != null && child.end_lineno > endLineNumber) {
-				endLineNumber = child.end_lineno;
-			}
-			if (child.end_col_offset != null && child.end_col_offset > endColumnOffset) {
-				endColumnOffset = child.end_col_offset;
-			}
-		}
-
-		let correctEndColumnOffset = false;
-		let endColumnOffsetHandle = '';
-
-		if (node.nodeType === 'Subscript') {
-			correctEndColumnOffset = true;
-			endColumnOffsetHandle = ']';
-		} else if (node.nodeType === 'Call') {
-			correctEndColumnOffset = true;
-			endColumnOffsetHandle = ')';
-		}
-
-		if (correctEndColumnOffset) {
-			let endColumnOffsetLine = this.sourceCodeLines[endLineNumber - 1];
-			let indexOfHandle = endColumnOffsetLine.indexOf(endColumnOffsetHandle, endColumnOffset);
-			// WARNING: This may be dangerous (it's a bit clumsy at least).
-			while (indexOfHandle === -1 && endLineNumber < this.sourceCodeLines.length) {
-				endLineNumber++;
-				endColumnOffsetLine = this.sourceCodeLines[endLineNumber - 1];
-				indexOfHandle = endColumnOffsetLine.indexOf(endColumnOffsetHandle);
-			}
-			if (indexOfHandle !== -1) {
-				endColumnOffset = indexOfHandle + 1;
-			}
-			// Otherwise, we set incorrect ends, but in that case
-			// there is probably a syntax error anyways...
-		}
-
-		node.end_lineno = endLineNumber;
-		node.end_col_offset = endColumnOffset;
-	}
-
-}
 
 class PythonCodeAnalyzer extends NodeVisitor {
 
 	private readonly sourceCodeLines: string[];
 	private readonly sortingListVariableName: string;
-
-//	private readonly nodeEndsSetterVisitor: NodeEndsSetterVisitor;
 
 	private trackedVariables: TrackedVariable[] = [];
 	public trackedVariableMap: TrackedVariableMap = {};
@@ -107,7 +47,6 @@ class PythonCodeAnalyzer extends NodeVisitor {
 		super();
 		this.sourceCodeLines = sourceCode.split('\n');
 		this.sortingListVariableName = sortingListVariableName;
-//		this.nodeEndsSetterVisitor = new NodeEndsSetterVisitor(sourceCode);
 	}
 
 	visit(node: ASTNodeUnion): void {
@@ -253,7 +192,9 @@ class PythonCodeAnalyzer extends NodeVisitor {
 
 export function analyzePythonCode(
 	sourceCode: string,
-	sortingListVariableName: string
+	sortingListVariableName: string,
+	sortingListSourceCodeStart: number,
+	sortingListSourceCodeEnd: number
 ): CodeAnalysisResult {
 	const ast = parse(sourceCode);
 	const analyzer = new PythonCodeAnalyzer(sourceCode, sortingListVariableName);
@@ -262,8 +203,17 @@ export function analyzePythonCode(
 
 	analyzer.visit(ast);
 
+	const instrumentationResult: InstrumentationResult =
+		instrumentCode(
+			sourceCode,
+			sortingListVariableName,
+			sortingListSourceCodeStart,
+			sortingListSourceCodeEnd
+		);
+
 	return {
 		trackedVariableMap: analyzer.trackedVariableMap,
-		comparisonMap: analyzer.comparisonMap
+		comparisonMap: analyzer.comparisonMap,
+		instrumentationResult
 	};
 }

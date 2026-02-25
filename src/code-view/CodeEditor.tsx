@@ -26,7 +26,7 @@ import {
 import {
 	type TrackedVariable,
 	type CodeAnalysisResult
-} from '../pyodide/codeAnalysis.ts';
+} from '../pyodide/code-analysis/codeAnalysis.ts';
 
 import { useTheme, type Theme as MuiTheme } from '@mui/material/styles';
 
@@ -238,36 +238,28 @@ function handleCodeEditorChange(
 	setState((previousState: State) => {
 		let {
 			sortingListVariableName,
-			sortingListSourceCodeStart,
-			sortingListSourceCodeEnd,
 			sortingList
 		} = previousState;
 
-		if (
-			sortingListSourceCodeStart === -1 ||
-			sortingListSourceCodeEnd === -1 ||
-			viewUpdate.changes.touchesRange(sortingListSourceCodeStart, sortingListSourceCodeEnd)
-		) {
-			sortingListSourceCodeStart = code.indexOf('[');
-			sortingListSourceCodeEnd = code.indexOf(']');
+		const sortingListSourceCodeStart = code.indexOf('[');
+		let sortingListSourceCodeEnd = code.indexOf(']');
 
-			if (sortingListSourceCodeEnd !== -1) {
-				sortingListSourceCodeEnd++;
-			}
+		if (sortingListSourceCodeEnd !== -1) {
+			sortingListSourceCodeEnd++;
+		}
 
-			if (sortingListSourceCodeStart === -1 || sortingListSourceCodeEnd === -1) {
-				sortingList = [];
-			} else {
-				const lineStart =
-					Math.max(code.lastIndexOf('\n', sortingListSourceCodeStart), 0);
-				sortingListVariableName =
-					code.slice(lineStart, sortingListSourceCodeStart).replaceAll('=', '').trim();
+		if (sortingListSourceCodeStart === -1 || sortingListSourceCodeEnd === -1) {
+			sortingList = [];
+		} else {
+			const lineStart =
+				Math.max(code.lastIndexOf('\n', sortingListSourceCodeStart), 0);
+			sortingListVariableName =
+				code.slice(lineStart, sortingListSourceCodeStart).replaceAll('=', '').trim();
 
-				try {
-					sortingList = eval(code.slice(sortingListSourceCodeStart, sortingListSourceCodeEnd));
-				} catch (error) {
-					// We ignore the error (for now)
-				}
+			try {
+				sortingList = eval(code.slice(sortingListSourceCodeStart, sortingListSourceCodeEnd));
+			} catch (error) {
+				// We ignore the error (for now)
 			}
 		}
 

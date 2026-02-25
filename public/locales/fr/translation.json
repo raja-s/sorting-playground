@@ -1,7 +1,7 @@
 {
 	"code": {
 		"starting_list_variable_name": "valeurs",
-		"list_variable_comment": "# La première instruction doit définir une\n# variable comme une liste (de int ou str)",
+		"list_variable_comment": "# La première instruction doit définir une\n# variable comme une liste (de int)",
 		"to_do_comment": "# Trier la liste ici..."
 	},
 	"control_bar": {

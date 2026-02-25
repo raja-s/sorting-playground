@@ -13,7 +13,7 @@ import {
 	type SortingElement,
 	useControlStore
 } from '../state/useControlStore.ts';
-import { type CodeAnalysisResult, type SortingListComparison } from '../pyodide/codeAnalysis.ts';
+import { type CodeAnalysisResult, type SortingListComparison } from '../pyodide/code-analysis/codeAnalysis.ts';
 
 import { Bar } from './Bar.tsx';
 

@@ -7,7 +7,7 @@ import {
 	type ExecutionState,
 	useControlStore
 } from '../state/useControlStore.ts';
-import { type CodeAnalysisResult, type TrackedVariable } from '../pyodide/codeAnalysis.ts';
+import { type CodeAnalysisResult, type TrackedVariable } from '../pyodide/code-analysis/codeAnalysis.ts';
 
 import { JETBRAINS_MONO_FONT_PATH } from './fonts.ts';
 
