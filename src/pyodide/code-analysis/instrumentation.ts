@@ -59,12 +59,14 @@ export function instrumentCode(
 		if (trimmedCodeLine.startsWith('if ') || trimmedCodeLine.startsWith('elif ')) {
 			let adaptedCodeLine: string = '';
 
-			const handle = ` ${sortingListVariableName}[`;
+			const handle = `${sortingListVariableName}[`;
 
 			let position = 0;
 			let handleStartPosition = codeLine.indexOf(handle, position);
 
-			while (handleStartPosition !== -1) {
+			while (handleStartPosition !== -1 &&
+				[' ', '<', '>', '='].includes(codeLine.charAt(handleStartPosition - 1)))
+			{
 				const closingBracketPosition = codeLine.indexOf(']', handleStartPosition + handle.length);
 
 				if (closingBracketPosition !== -1) {
