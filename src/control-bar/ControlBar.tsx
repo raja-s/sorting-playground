@@ -1,6 +1,4 @@
 
-import { type ExecutionState, useControlStore } from '../state/useControlStore.ts';
-
 import Checkbox from '@mui/material/Checkbox';
 import Divider from '@mui/material/Divider';
 import FormControlLabel from '@mui/material/FormControlLabel';
@@ -25,12 +23,21 @@ import UndoIcon from '@mui/icons-material/Undo';
 
 import { useTranslation } from 'react-i18next';
 
+import { fileOpen, fileSave } from 'browser-fs-access';
+
+import { type ExecutionState, useControlStore } from '../state/useControlStore.ts';
+
 import { ControlIconButton } from './ControlIconButton.tsx';
 
 export function ControlBar() {
 	const translate = useTranslation().t;
 
 	const readyToExecuteCode = useControlStore(state => state.readyToExecuteCode);
+
+	const activePythonCode = useControlStore(state => state.activePythonCode);
+	const setActivePythonCode = useControlStore(state => state.setActivePythonCode);
+
+	const setFileOpenTriggerValue = useControlStore(state => state.setFileOpenTriggerValue);
 
 	const executionHistory = useControlStore(state => state.executionHistory);
 	const executionHistoryPosition: number = useControlStore(state => state.executionHistoryPosition);
@@ -70,12 +77,36 @@ export function ControlBar() {
 					columnGap='10px'
 				>
 					<Tooltip title={translate('control_bar.code_controls.open_button')}>
-						<IconButton>
+						<IconButton
+							onClick={async () => {
+								const blob: Blob = await fileOpen({
+									mimeTypes: [ 'text/x-python' ],
+									extensions: [ '.py' ],
+									description: 'Python scripts'
+								});
+								setActivePythonCode(await blob.text());
+								setFileOpenTriggerValue();
+							}}
+						>
 							<FolderIcon fontSize='large' />
 						</IconButton>
 					</Tooltip>
 					<Tooltip title={translate('control_bar.code_controls.download_button')}>
-						<IconButton>
+						<IconButton
+							onClick={async () => {
+								const blob: Blob = new Blob(
+									[ activePythonCode ],
+									{ type: 'text/x-python'
+								});
+								await fileSave(
+									blob,
+									{
+										fileName: 'script.py',
+										extensions: [ '.py' ]
+									}
+								);
+							}}
+						>
 							<DownloadIcon fontSize='large' />
 						</IconButton>
 					</Tooltip>

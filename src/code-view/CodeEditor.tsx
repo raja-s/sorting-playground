@@ -141,6 +141,7 @@ export function CodeEditor(props: CodeEditorProps) {
 	const setSortingListData = useControlStore(state => state.setSortingListData);
 	const activePythonCode = useControlStore(state => state.activePythonCode);
 	const setActivePythonCode = useControlStore(state => state.setActivePythonCode);
+	const fileOpenTriggerValue = useControlStore(state => state.fileOpenTriggerValue);
 	const pythonCodeAnalysisResult = useControlStore(state => state.pythonCodeAnalysisResult);
 	const executionHistory = useControlStore(state => state.executionHistory);
 	const executionHistoryPosition = useControlStore(state => state.executionHistoryPosition);
@@ -188,6 +189,10 @@ export function CodeEditor(props: CodeEditorProps) {
 			executionHistoryPosition
 		);
 	}, [ executionHistory, executionHistoryPosition, executionState ]);
+
+	useEffect(() => {
+		setEntireEditorCode(editorViewRef.current, activePythonCode);
+	}, [ fileOpenTriggerValue ]);
 
 	const extensions = useMemo(() => [
 		python(),
@@ -283,8 +288,26 @@ function handleCodeEditorChange(
 	});
 }
 
+function setEntireEditorCode(
+	editorView: EditorView | null,
+	code: string
+): void {
+	if (editorView == null) {
+		return;
+	}
+
+	editorView.dispatch({
+		effects: clearExecutionLine.of(null),
+		changes: {
+			from: 0,
+			to: editorView.state.doc.length,
+			insert: code
+		}
+	});
+}
+
 function handleExecutionUpdate(
-	editorView: EditorView,
+	editorView: EditorView | null,
 	activePythonCode: string,
 	pythonCodeAnalysisResult: CodeAnalysisResult,
 	executionState: ExecutionState,
@@ -296,14 +319,7 @@ function handleExecutionUpdate(
 	}
 
 	if (executionState === 'stopped') {
-		editorView.dispatch({
-			effects: clearExecutionLine.of(null),
-			changes: {
-				from: 0,
-				to: editorView.state.doc.length,
-				insert: activePythonCode
-			}
-		});
+		setEntireEditorCode(editorView, activePythonCode);
 		return;
 	}
 

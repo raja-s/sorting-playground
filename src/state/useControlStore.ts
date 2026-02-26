@@ -50,6 +50,9 @@ export interface ControlState {
 	activePythonCode: string;
 	setActivePythonCode: (code: string) => void;
 
+	fileOpenTriggerValue: number;
+	setFileOpenTriggerValue: () => void;
+
 	consoleContent: ConsoleContent[];
 	appendToConsole: (content: ConsoleContent) => void;
 
@@ -124,6 +127,13 @@ export const useControlStore =
 
 			activePythonCode: '',
 			setActivePythonCode: (code: string) => { setState({ activePythonCode: code }); },
+
+			fileOpenTriggerValue: 0,
+			setFileOpenTriggerValue: () => {
+				setState((state: ControlState) => ({
+					fileOpenTriggerValue: state.fileOpenTriggerValue + 1
+				}));
+			},
 
 			consoleContent: [],
 			appendToConsole: (content: ConsoleContent) => {
