@@ -27,8 +27,8 @@ export const Bar = forwardRef<THREE.Mesh, BarProps>(
 				<Text
 					position={[0, props.value / 2 - 0.1, 0]}
 					fontSize={0.5}
-					color={labelColor(props)}
 					anchorY='top'
+					color={labelColor(props)}
 				>{props.value}</Text>
 			</group>
 		);

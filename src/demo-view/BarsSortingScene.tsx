@@ -9,25 +9,12 @@ import * as THREE from 'three';
 
 import {
 	type ExecutionCheckpoint,
-	type ExecutionState,
 	type SortingElement,
 	useControlStore
 } from '../state/useControlStore.ts';
 import { type CodeAnalysisResult, type SortingListComparison } from '../pyodide/code-analysis/codeAnalysis.ts';
 
 import { Bar } from './Bar.tsx';
-
-/*type Movement = {
-	identifier: number,
-	oldPosition: number,
-	newPosition: number
-};*/
-
-// TODO: Is this really necessary?! Is TargetPositions enough after all?
-/*type SortingListMovementSet = {
-	targetSortingList: SortingElement[],
-	movements: { [identifier: number]: Movement }
-};*/
 
 type MountedBars = {
 	[identifier: number]: THREE.Mesh
@@ -56,10 +43,6 @@ export function BarsSortingScene() {
 	const bounds = determineBounds(sortingList);
 
 	const mountedBarsRef: RefObject<MountedBars> = useRef({});
-	/*const sortingListMovementSetRef: RefObject<SortingListMovementSet> = useRef({
-		targetSortingList: sortingList,
-		movements: {}
-	});*/
 	const targetPositionsRef: RefObject<TargetPositions> = useRef({});
 
 	const registerBar = useCallback((identifier: number, barMesh: THREE.Mesh) => {
@@ -69,13 +52,6 @@ export function BarsSortingScene() {
 			mountedBarsRef.current[identifier] = barMesh;
 		}
 	}, []);
-
-	/*useEffect(() => {
-		sortingListMovementSetRef.current = {
-			targetSortingList: sortingList,
-			movements: {}
-		};
-	}, [sortingList]);*/
 
 	useEffect(() => {
 		const unsubscribe = useControlStore.subscribe(
@@ -95,14 +71,13 @@ export function BarsSortingScene() {
 					return;
 				}
 
-				/*sortingListMovementSetRef.current =
-					computeSortingListMovementSet(
-						sortingListMovementSetRef.current,
-						executionHistory[executionHistoryPosition - 1].sortingList,
-						targetPositionsRef.current
-					);*/
+				for (const identifier in mountedBarsRef.current) {
+					mountedBarsRef.current[identifier].visible = false;
+				}
+
 				executionHistory[executionHistoryPosition - 1].sortingList.forEach(
 					(element: SortingElement, index: number) => {
+						mountedBarsRef.current[element.identifier].visible = true;
 						targetPositionsRef.current[element.identifier] = index;
 					}
 				);
@@ -134,6 +109,9 @@ export function BarsSortingScene() {
 
 				targetPositionsRef.current = {};
 				sortingList.forEach((element: SortingElement, index: number) => {
+					if (element.identifier in mountedBarsRef.current) {
+						mountedBarsRef.current[element.identifier].visible = true;
+					}
 					targetPositionsRef.current[element.identifier] = index;
 				});
 			}
@@ -142,18 +120,15 @@ export function BarsSortingScene() {
 	}, []);
 
 	useFrame((state, delta) => {
-//		const sortingListMovementSet: SortingListMovementSet =
-//			sortingListMovementSetRef.current;
-
 		const alpha = 1 - Math.exp(-8 * delta);
 
-//		for (const identifier in sortingListMovementSet.movements) {
 		for (const identifier in targetPositionsRef.current) {
 			const barMesh = mountedBarsRef.current[identifier];
-//			const targetPosition = sortingListMovementSet.movements[identifier].newPosition;
 			const targetPosition = targetPositionsRef.current[identifier];
 
 			if (barMesh == null) {
+				delete mountedBarsRef.current[identifier];
+				delete targetPositionsRef.current[identifier];
 				continue;
 			}
 
@@ -277,33 +252,3 @@ function evaluateIndexExpression(
 
 	return eval(evaluationCode);
 }
-
-/*function computeSortingListMovementSet(
-	movementSet: SortingListMovementSet,
-	newSortingList: SortingElement[],
-	targetPositions: TargetPositions
-): SortingListMovementSet {
-	const newMovementSet: SortingListMovementSet = {
-		targetSortingList: newSortingList,
-		movements: {}
-	};
-
-	newSortingList.forEach((element, index) => {
-		if (movementSet.targetSortingList[index].identifier !== element.identifier) {
-			newMovementSet.movements[element.identifier] = {
-				identifier: element.identifier,
-				oldPosition: -1,
-				newPosition: index
-			};
-		}
-		targetPositions[element.identifier] = index;
-	});
-
-//	movementSet.targetSortingList.forEach((element, index) => {
-//		if (element.identifier in newMovementSet.movements) {
-//			newMovementSet.movements[element.identifier].oldPosition = index;
-//		}
-//	});
-
-	return newMovementSet;
-}*/
