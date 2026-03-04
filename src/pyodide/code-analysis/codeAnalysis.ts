@@ -1,5 +1,5 @@
 
-import { type ASTNodeUnion, NodeVisitor, parse } from 'py-ast';
+import { type ASTNodeUnion, type Assign, NodeVisitor, parse } from 'py-ast';
 
 import NodeEndsSetterVisitor from './NodeEndsSetterVisitor.ts';
 
@@ -38,7 +38,7 @@ class PythonCodeAnalyzer extends NodeVisitor {
 	private readonly sourceCodeLines: string[];
 	private readonly sortingListVariableName: string;
 
-	private trackedVariables: TrackedVariable[] = [];
+	private trackedVariablesStack: TrackedVariable[][] = [ [] ];
 	public trackedVariableMap: TrackedVariableMap = {};
 
 	public comparisonMap: SortingListComparisonMap = {};
@@ -52,49 +52,67 @@ class PythonCodeAnalyzer extends NodeVisitor {
 	visit(node: ASTNodeUnion): void {
 		const lineNumber: number = node.lineno as number
 		if (!(lineNumber in this.trackedVariableMap)) {
-			this.trackedVariableMap[lineNumber] = this.trackedVariables.slice();
+			this.trackedVariableMap[lineNumber] = this.trackedVariablesStackHead().slice();
 		}
 		super.visit(node);
 	}
 
-	visitFor(forNode: ASTNodeUnion): void {
-		let definedVariableCount: number;
+	visitAssign(assignNode: Assign): void {
+		this.trackedVariablesStackHead().push(
+			...assignNode.targets
+				.filter(target => target.nodeType === 'Name')
+				.filter(target => target.id !== this.sortingListVariableName)
+				.filter(target =>
+					!this.trackedVariablesStackHead().some(variable => target.id === variable.name))
+				.map(target => ({
+					name: target.id,
+					definitionLineNumber: target.lineno,
+					loopIterator: false
+				}))
+		);
 
+		this.genericVisit(assignNode);
+
+	}
+
+	visitAnnAssign(assignNode: Assign): void {
+		this.visitAssign(assignNode);
+	}
+
+	visitFor(forNode: ASTNodeUnion): void {
 		if ('id' in forNode.target) {
-			this.trackedVariables.push({
+			this.trackedVariablesStackHead().push({
 				name: forNode.target.id,
 				definitionLineNumber: forNode.lineno as number,
 				loopIterator: true
 			});
-			definedVariableCount = 1;
 		} else {
-			forNode.target.elts.forEach((element: ASTNodeUnion) => {
-				this.trackedVariables.push({
+			this.trackedVariablesStackHead().push(
+				...forNode.target.elts.map((element: ASTNodeUnion) => ({
 					name: element.id,
 					definitionLineNumber: element.lineno as number,
 					loopIterator: true
-				});
-			});
-			definedVariableCount = forNode.target.elts.length;
+				}))
+			);
 		}
 
 		this.genericVisit(forNode);
-
-		this.trackedVariables.splice(-definedVariableCount);
 	}
 
 	visitFunctionDef(defNode: ASTNodeUnion): void {
-		defNode.args.args.forEach((parameter: ASTNodeUnion) => {
-			this.trackedVariables.push({
+		this.trackedVariablesStack.push([]);
+
+		this.trackedVariablesStackHead().push(
+			...defNode.args.args.map((parameter: ASTNodeUnion) => ({
 				name: parameter.arg,
 				definitionLineNumber: parameter.lineno as number,
 				loopIterator: false
-			});
-		});
+			}))
+		);
 
 		this.genericVisit(defNode);
 
-		this.trackedVariables.splice(-defNode.args.args.length);
+		this.trackedVariablesStack.pop();
 	}
 
 	/**
@@ -104,6 +122,10 @@ class PythonCodeAnalyzer extends NodeVisitor {
 		this.addSortingListComparison(ifNode);
 
 		this.genericVisit(ifNode);
+	}
+
+	private trackedVariablesStackHead(): TrackedVariable[] {
+		return this.trackedVariablesStack[this.trackedVariablesStack.length - 1];
 	}
 
 	private addSortingListComparison(ifNode: ASTNodeUnion): void {
