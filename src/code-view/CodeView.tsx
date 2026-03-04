@@ -7,7 +7,7 @@ import { useTranslation } from 'react-i18next';
 import { CodeEditor } from './CodeEditor.tsx';
 import { Console } from './Console.tsx';
 
-const startingList: number[] = [1, 8, 2, 5, 3, 9, 6, 4, 7];
+const startingList: number[] = [3, 7, 1, 5, 2, 8, 9, 4, 6];
 
 export function CodeView() {
 	const translate = useTranslation().t;
