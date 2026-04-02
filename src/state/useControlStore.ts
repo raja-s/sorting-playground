@@ -154,7 +154,7 @@ export const useControlStore =
 			executionHistory: [],
 			executionHistoryPosition: 0,
 
-			executionSpeed: 6,
+			executionSpeed: 5,
 			setExecutionSpeed: (speed: number) => {
 				setExecutionSpeed(speed, getState, setState);
 			},
@@ -192,15 +192,15 @@ function reassessReadyToExecuteCode(setState: SetState): void {
 
 function delayForExecutionSpeed(speed: number): number {
 	switch (speed) {
-		case 10: return    50;
-		case  9: return   150;
-		case  8: return   500;
-		case  7: return  1000;
-		case  6: return  3000;
-		case  5: return  5000;
-		case  4: return 10000;
-		case  3: return 15000;
-		case  2: return 30000;
+		case 10: return    25;
+		case  9: return    50;
+		case  8: return   150;
+		case  7: return   500;
+		case  6: return  1000;
+		case  5: return  3000;
+		case  4: return  5000;
+		case  3: return  8000;
+		case  2: return 20000;
 		case  1: return 60000;
 		default: return  3000;
 	}
