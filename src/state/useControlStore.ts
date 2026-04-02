@@ -155,7 +155,9 @@ export const useControlStore =
 			executionHistoryPosition: 0,
 
 			executionSpeed: 6,
-			setExecutionSpeed: (speed: number) => { setState({ executionSpeed: speed }); },
+			setExecutionSpeed: (speed: number) => {
+				setExecutionSpeed(speed, getState, setState);
+			},
 
 			executionState: 'stopped',
 			runExecution: () => { runExecution(getState, setState); },
@@ -295,6 +297,12 @@ function handleExecutionWaitingForInput(): void {
 
 	Atomics.store(controlBuffer, 0, CONTROL_BUFFER_VALUES.dataAvailable);
 	Atomics.notify(controlBuffer, 0);
+}
+
+function setExecutionSpeed(speed: number, getState: GetState, setState: SetState): void {
+	setState({ executionSpeed: speed });
+	clearTimeout(resumeExecutionTimeoutIdentifier);
+	resumeAfterDelay(getState, setState);
 }
 
 function runExecution(getState: GetState, setState: SetState): void {
