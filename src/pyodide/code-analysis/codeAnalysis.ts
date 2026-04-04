@@ -1,13 +1,23 @@
 
-import { type ASTNodeUnion, type Assign, NodeVisitor, parse } from 'py-ast';
+import { type ASTNodeUnion, type Assign, parse } from 'py-ast';
 
+import BaseNodeVisitor from './BaseNodeVisitor.ts';
 import NodeEndsSetterVisitor from './NodeEndsSetterVisitor.ts';
 
+import { type LineNumberRange } from './common.ts';
 import { type InstrumentationResult, instrumentCode } from './instrumentation.ts';
+
+export type SaveExecutionCheckpointLineNumberRanges = {
+	[lineNumber: number]: LineNumberRange
+};
+
+export type NestedElifLinesExtraLevels = {
+	[lineNumber: number]: number
+};
 
 export type TrackedVariable = {
 	name: string,
-	definitionLineNumber: number,
+	definitionLineNumberRange: LineNumberRange,
 	loopIterator: boolean
 };
 
@@ -17,7 +27,7 @@ export type SortingListComparison = {
 	leftHandSideSortingListIndexExpression?: string,
 	rightHandSide: string,
 	rightHandSideSortingListIndexExpression?: string
-}
+};
 
 export type TrackedVariableMap = {
 	[lineNumber: number]: TrackedVariable[]
@@ -33,10 +43,29 @@ export type CodeAnalysisResult = {
 	instrumentationResult: InstrumentationResult
 };
 
-class PythonCodeAnalyzer extends NodeVisitor {
+const SAVE_EXECUTION_CHECKOINT_NODE_TYPES = new Set([
+	'Assign',
+	'For',
+	'While',
+	'If',
+	'Expr',
+	'Break',
+	'Continue',
+	'Delete',
+	'Pass',
+	'Match',
+	'Raise',
+	'Return',
+	'With'
+]);
 
-	private readonly sourceCodeLines: string[];
+class PythonCodeAnalyzer extends BaseNodeVisitor {
+
 	private readonly sortingListVariableName: string;
+
+	public saveExecutionCheckpointLineNumberRanges: SaveExecutionCheckpointLineNumberRanges = {};
+
+	public nestedElifLinesExtraLevels: NestedElifLinesExtraLevels = {};
 
 	private trackedVariablesStack: TrackedVariable[][] = [ [] ];
 	public trackedVariableMap: TrackedVariableMap = {};
@@ -44,8 +73,7 @@ class PythonCodeAnalyzer extends NodeVisitor {
 	public comparisonMap: SortingListComparisonMap = {};
 
 	constructor(sourceCode: string, sortingListVariableName: string) {
-		super();
-		this.sourceCodeLines = sourceCode.split('\n');
+		super(sourceCode);
 		this.sortingListVariableName = sortingListVariableName;
 	}
 
@@ -54,6 +82,17 @@ class PythonCodeAnalyzer extends NodeVisitor {
 		if (!(lineNumber in this.trackedVariableMap)) {
 			this.trackedVariableMap[lineNumber] = this.trackedVariablesStackHead().slice();
 		}
+
+		if (
+			SAVE_EXECUTION_CHECKOINT_NODE_TYPES.has(node.nodeType) &&
+			!node.isElif
+		) {
+			this.saveExecutionCheckpointLineNumberRanges[lineNumber] = {
+				start: lineNumber,
+				end: node.end_lineno
+			};
+		}
+
 		super.visit(node);
 	}
 
@@ -66,13 +105,15 @@ class PythonCodeAnalyzer extends NodeVisitor {
 					!this.trackedVariablesStackHead().some(variable => target.id === variable.name))
 				.map(target => ({
 					name: target.id,
-					definitionLineNumber: target.lineno,
+					definitionLineNumberRange: {
+						start: assignNode.lineno,
+						end: assignNode.end_lineno
+					},
 					loopIterator: false
 				}))
 		);
 
 		this.genericVisit(assignNode);
-
 	}
 
 	visitAnnAssign(assignNode: Assign): void {
@@ -83,14 +124,20 @@ class PythonCodeAnalyzer extends NodeVisitor {
 		if ('id' in forNode.target) {
 			this.trackedVariablesStackHead().push({
 				name: forNode.target.id,
-				definitionLineNumber: forNode.lineno as number,
+				definitionLineNumberRange: {
+					start: forNode.lineno as number,
+					end: forNode.lineno as number
+				},
 				loopIterator: true
 			});
 		} else {
 			this.trackedVariablesStackHead().push(
 				...forNode.target.elts.map((element: ASTNodeUnion) => ({
 					name: element.id,
-					definitionLineNumber: element.lineno as number,
+					definitionLineNumberRange: {
+						start: element.lineno as number,
+						end: element.lineno as number
+					},
 					loopIterator: true
 				}))
 			);
@@ -105,7 +152,10 @@ class PythonCodeAnalyzer extends NodeVisitor {
 		this.trackedVariablesStackHead().push(
 			...defNode.args.args.map((parameter: ASTNodeUnion) => ({
 				name: parameter.arg,
-				definitionLineNumber: parameter.lineno as number,
+				definitionLineNumberRange: {
+					start: parameter.lineno as number,
+					end: parameter.lineno as number
+				},
 				loopIterator: false
 			}))
 		);
@@ -121,7 +171,55 @@ class PythonCodeAnalyzer extends NodeVisitor {
 	visitIf(ifNode: ASTNodeUnion): void {
 		this.addSortingListComparison(ifNode);
 
+		if (!('isElif' in ifNode)) {
+			ifNode.isElif = false;
+		}
+
+		let orElseNodeIsElif: boolean = false;
+
+		if (ifNode.orelse.length === 1) {
+			const orElseNode: ASTNodeUnion = ifNode.orelse[0];
+
+			if (
+				orElseNode.nodeType === 'If' &&
+					this.sourceCodeLines[orElseNode.lineno - 1]
+						.slice(orElseNode.col_offset).startsWith('elif')
+			) {
+				orElseNodeIsElif = true;
+				orElseNode.isElif = true;
+				orElseNode.elifLevel = !ifNode.isElif ? 1 : ifNode.elifLevel + 1;
+			}
+		}
+
 		this.genericVisit(ifNode);
+
+		if (ifNode.isElif) {
+			this.saveExecutionCheckpointLineNumberRanges[ifNode.lineno] = {
+				start: ifNode.lineno,
+				end: ifNode.end_lineno
+			};
+
+			const lastLineNumber: number = ifNode.body[ifNode.body.length - 1].end_lineno;
+
+			for (let lineNumber = ifNode.lineno ; lineNumber <= lastLineNumber ; lineNumber++) {
+				if (!(lineNumber in this.nestedElifLinesExtraLevels)) {
+					this.nestedElifLinesExtraLevels[lineNumber] = 0;
+				}
+				this.nestedElifLinesExtraLevels[lineNumber] += ifNode.elifLevel;
+			}
+		}
+
+		if (!orElseNodeIsElif && ifNode.orelse.length > 0) {
+			const firstLineNumber: number = ifNode.body[ifNode.body.length - 1].end_lineno + 1;
+			const lastLineNumber: number = ifNode.orelse[ifNode.orelse.length - 1].end_lineno;
+
+			for (let lineNumber = firstLineNumber ; lineNumber <= lastLineNumber ; lineNumber++) {
+				if (!(lineNumber in this.nestedElifLinesExtraLevels)) {
+					this.nestedElifLinesExtraLevels[lineNumber] = 0;
+				}
+				this.nestedElifLinesExtraLevels[lineNumber] += ifNode.elifLevel;
+			}
+		}
 	}
 
 	private trackedVariablesStackHead(): TrackedVariable[] {
@@ -214,11 +312,10 @@ class PythonCodeAnalyzer extends NodeVisitor {
 
 export function analyzePythonCode(
 	sourceCode: string,
-	sortingListVariableName: string,
-	sortingListSourceCodeStart: number,
-	sortingListSourceCodeEnd: number
+	sortingListVariableName: string
 ): CodeAnalysisResult {
 	const ast = parse(sourceCode);
+	console.log(ast);
 	const analyzer = new PythonCodeAnalyzer(sourceCode, sortingListVariableName);
 
 	new NodeEndsSetterVisitor(sourceCode).visit(ast);
@@ -229,8 +326,8 @@ export function analyzePythonCode(
 		instrumentCode(
 			sourceCode,
 			sortingListVariableName,
-			sortingListSourceCodeStart,
-			sortingListSourceCodeEnd
+			analyzer.saveExecutionCheckpointLineNumberRanges,
+			analyzer.nestedElifLinesExtraLevels
 		);
 
 	return {

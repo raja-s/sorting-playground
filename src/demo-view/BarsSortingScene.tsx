@@ -205,7 +205,7 @@ function checkAndSetActiveComparison(
 	const executionCheckpoint: ExecutionCheckpoint =
 		executionHistory[executionHistoryPosition - 1];
 
-	const lineNumber = executionCheckpoint.lineNumber;
+	const lineNumber = executionCheckpoint.startLineNumber;
 
 	if (!(lineNumber in pythonCodeAnalysisResult.comparisonMap)) {
 		setActiveComparison(null);

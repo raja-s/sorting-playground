@@ -23,14 +23,14 @@ export function SortingIndices() {
 
 	const executionCheckpoint = executionHistory[Math.max(executionHistoryPosition - 1, 0)];
 
-	if (executionCheckpoint.lineNumber === -1) {
+	if (executionCheckpoint.startLineNumber == null) {
 		return null;
 	}
 
 	return (
 		<group>
 			{
-				pythonCodeAnalysisResult.trackedVariableMap[executionCheckpoint.lineNumber]
+				pythonCodeAnalysisResult.trackedVariableMap[executionCheckpoint.startLineNumber]
 					.filter((variable: TrackedVariable) => variable.loopIterator)
 					.map((variable: TrackedVariable, index: number, array: TrackedVariable[]) => {
 						const value: number = executionCheckpoint.scopeLocals[variable.name] as number;

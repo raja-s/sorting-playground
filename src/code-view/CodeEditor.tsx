@@ -51,10 +51,16 @@ const executionEndLineGutterMarker = new (class extends GutterMarker {
 })();
 
 const setExecutionStartLine = StateEffect.define({
-	map: (position, change) => change.mapPos(position)
+	map: (range, change) => ({
+		from: change.mapPos(range.from),
+		to: change.mapPos(range.to)
+	})
 });
 const setExecutingLine = StateEffect.define({
-	map: (position, change) => change.mapPos(position)
+	map: (range, change) => ({
+		from: change.mapPos(range.from),
+		to: change.mapPos(range.to)
+	})
 });
 const setExecutionEndLine = StateEffect.define({
 	map: (position, change) => change.mapPos(position)
@@ -91,22 +97,40 @@ const executingLineField = StateField.define({
 		let decoration = null;
 		let gutter = null;
 
-		if (effect.is(setExecutionStartLine)) {
-			decoration = executionStartLineDecoration;
-			gutter = executionStartLineGutterMarker;
-		} else if (effect.is(setExecutingLine)) {
-			decoration = executingLineDecoration;
-			gutter = executingLineGutterMarker;
-		} else if (effect.is(setExecutionEndLine)) {
+		// Range effects
+		if (effect.is(setExecutionStartLine) || effect.is(setExecutingLine)) {
+			if (effect.is(setExecutionStartLine)) {
+				decoration = executionStartLineDecoration;
+				gutter = executionStartLineGutterMarker;
+			} else if (effect.is(setExecutingLine)) {
+				decoration = executingLineDecoration;
+				gutter = executingLineGutterMarker;
+			}
+
+			const { from, to } = effect.value;
+			const decorationRanges = [];
+			const gutterRanges = [];
+
+			for (let position = from ; position <= to ; ) {
+				const line = transaction.state.doc.lineAt(position);
+
+				decorationRanges.push(decoration.range(line.from));
+				gutterRanges.push(gutter.range(line.from));
+
+				position = line.to + 1;
+			}
+
+			fieldValue.decoration = Decoration.set(decorationRanges);
+			fieldValue.gutter = RangeSet.of(gutterRanges);
+		}
+		// Single-line effects
+		else if (effect.is(setExecutionEndLine)) {
 			decoration = executionEndLineDecoration;
 			gutter = executionEndLineGutterMarker;
-		}
 
-		if (decoration != null && gutter != null) {
-//			const linePosition: number = effect.value as unknown as number;
-			const actualLine = transaction.state.doc.lineAt(effect.value);
-			fieldValue.decoration = Decoration.set([ decoration.range(actualLine.from) ]);
-			fieldValue.gutter = RangeSet.of([ gutter.range(actualLine.from) ]);
+			const line = transaction.state.doc.lineAt(effect.value);
+			fieldValue.decoration = Decoration.set([ decoration.range(line.from) ]);
+			fieldValue.gutter = RangeSet.of([ gutter.range(line.from) ]);
 		}
 
 		return fieldValue;
@@ -126,8 +150,6 @@ type CodeEditorProps = {
 
 type State = {
 	sortingListVariableName: string,
-	sortingListSourceCodeStart: number,
-	sortingListSourceCodeEnd: number,
 	sortingList: number[],
 	lineCount: number,
 	longestLineLength: number
@@ -149,8 +171,6 @@ export function CodeEditor(props: CodeEditorProps) {
 
 	const [state, setState] = useState<State>({
 		sortingListVariableName: props.startingListVariableName,
-		sortingListSourceCodeStart: props.startingCode.indexOf('['),
-		sortingListSourceCodeEnd: props.startingCode.indexOf(']') + 1,
 		sortingList: props.startingList,
 		lineCount: props.startingCodeLines.length,
 		longestLineLength: Math.max(...props.startingCodeLines.map(line => line.length))
@@ -163,20 +183,10 @@ export function CodeEditor(props: CodeEditorProps) {
 	useEffect(
 		() => {
 			if ([...state.sortingList].every(element => Number.isFinite(element))) {
-				setSortingListData(
-					state.sortingListVariableName,
-					state.sortingListSourceCodeStart,
-					state.sortingListSourceCodeEnd,
-					state.sortingList
-				);
+				setSortingListData(state.sortingListVariableName, state.sortingList);
 			}
 		},
-		[
-			state.sortingListVariableName,
-			state.sortingListSourceCodeStart,
-			state.sortingListSourceCodeEnd,
-			state.sortingList
-		]
+		[ state.sortingListVariableName, state.sortingList ]
 	);
 
 	useEffect(() => {
@@ -234,57 +244,57 @@ function handleCodeEditorChange(
 		return;
 	}
 
-	const code: string = viewUpdate.state.doc.toString();
-
 	if (executionState === 'stopped') {
-		setActivePythonCode(code);
+		setActivePythonCode(viewUpdate.state.doc.toString());
 	}
 
 	setState((previousState: State) => {
-		let {
-			sortingListVariableName,
-			sortingList
-		} = previousState;
+		const lineCount: number = viewUpdate.state.doc.lines;
+		let longestLineLength: number = 0;
 
-		const sortingListSourceCodeStart = code.indexOf('[');
-		let sortingListSourceCodeEnd = code.indexOf(']');
-
-		if (sortingListSourceCodeEnd !== -1) {
-			sortingListSourceCodeEnd++;
-		}
-
-		if (sortingListSourceCodeStart === -1 || sortingListSourceCodeEnd === -1) {
-			sortingList = [];
-		} else {
-			const lineStart =
-				Math.max(code.lastIndexOf('\n', sortingListSourceCodeStart), 0);
-			sortingListVariableName =
-				code.slice(lineStart, sortingListSourceCodeStart).replaceAll('=', '').trim();
-
-			try {
-				sortingList = eval(code.slice(sortingListSourceCodeStart, sortingListSourceCodeEnd));
-			} catch (error) {
-				// We ignore the error (for now)
-			}
-		}
-
-		let longestLineLength = 0;
-
-		for (let i = 1 ; i <= viewUpdate.state.doc.lines ; i++) {
+		for (let i = 1 ; i <= lineCount ; i++) {
 			const lineLength = viewUpdate.state.doc.line(i).length;
 			if (lineLength > longestLineLength) {
 				longestLineLength = lineLength;
 			}
 		}
 
-		return {
-			sortingListVariableName,
-			sortingListSourceCodeStart,
-			sortingListSourceCodeEnd,
-			sortingList,
-			lineCount: viewUpdate.state.doc.lines,
-			longestLineLength
-		};
+		const sourceCode: string = viewUpdate.state.doc.toString();
+
+		const sortingListSourceCodeStart: number = sourceCode.indexOf('[');
+
+		if (sortingListSourceCodeStart === -1) {
+			return { sortingListVariableName: '', sortingList: [], lineCount, longestLineLength };
+		}
+
+		let sortingListSourceCodeEnd: number = sourceCode.indexOf(']', sortingListSourceCodeStart);
+
+		if (sortingListSourceCodeEnd === -1) {
+			return { sortingListVariableName: '', sortingList: [], lineCount, longestLineLength };
+		}
+
+		sortingListSourceCodeEnd++;
+
+		let sortingList: unknown[];
+
+		try {
+			sortingList = eval(sourceCode.slice(sortingListSourceCodeStart, sortingListSourceCodeEnd));
+		} catch (error) {
+			// We ignore the error (for now)
+			sortingList = previousState.sortingList;
+		}
+
+		const equalSignIndex: number = sourceCode.lastIndexOf('=', sortingListSourceCodeStart);
+
+		if (equalSignIndex === -1) {
+			return { sortingListVariableName: '', sortingList, lineCount, longestLineLength };
+		}
+
+		const lineStart: number = Math.max(sourceCode.lastIndexOf('\n', equalSignIndex), 0);
+		const sortingListVariableName: string =
+			sourceCode.slice(lineStart, equalSignIndex).replaceAll('=', '').trim();
+
+		return { sortingListVariableName, sortingList, lineCount, longestLineLength };
 	});
 }
 
@@ -327,37 +337,39 @@ function handleExecutionUpdate(
 		return;
 	}
 
-	let executionCheckpoint: ExecutionCheckpoint;
-	let lineNumber: number;
-	let effectLineNumber: number;
-	let effect;
-
-	if (executionHistoryPosition === 0) {
-		executionCheckpoint = executionHistory[0];
-		lineNumber = executionCheckpoint.lineNumber;
-		effectLineNumber = lineNumber;
-		effect = setExecutionStartLine;
-	} else {
-		executionCheckpoint = executionHistory[executionHistoryPosition - 1];
-		lineNumber = executionCheckpoint.lineNumber;
-		if (lineNumber === -1) {
-			effectLineNumber = editorView.state.doc.lines;
-			effect = setExecutionEndLine;
-		} else {
-			effectLineNumber = lineNumber;
-			effect = setExecutingLine;
-		}
-	}
+	let executionCheckpoint: ExecutionCheckpoint =
+		executionHistoryPosition === 0 ? executionHistory[0] :
+			executionHistory[executionHistoryPosition - 1];
 
 	const executionAnnotationsChanges = getExecutionAnnotationsChanges(
 		editorView,
 		activePythonCode,
 		pythonCodeAnalysisResult,
-		executionCheckpoint,
-		lineNumber
+		executionCheckpoint
 	);
 	const transaction = editorView.state.update({ changes: executionAnnotationsChanges });
-	const effectPosition = transaction.state.doc.line(effectLineNumber).from;
+
+	let effectPosition;
+	let effect;
+
+	if (executionHistoryPosition === 0) {
+		effectPosition = {
+			from: transaction.state.doc.line(executionCheckpoint.startLineNumber).from,
+			to: transaction.state.doc.line(executionCheckpoint.endLineNumber).to
+		};
+		effect = setExecutionStartLine;
+	} else {
+		if (executionCheckpoint.startLineNumber == null) {
+			effectPosition = transaction.state.doc.line(editorView.state.doc.lines).from;
+			effect = setExecutionEndLine;
+		} else {
+			effectPosition = {
+				from: transaction.state.doc.line(executionCheckpoint.startLineNumber).from,
+				to: transaction.state.doc.line(executionCheckpoint.endLineNumber).to
+			};
+			effect = setExecutingLine;
+		}
+	}
 
 	editorView.dispatch({
 		changes: executionAnnotationsChanges,
@@ -369,8 +381,7 @@ function getExecutionAnnotationsChanges(
 	editorView: EditorView,
 	activePythonCode: string,
 	pythonCodeAnalysisResult: CodeAnalysisResult,
-	executionCheckpoint: ExecutionCheckpoint,
-	lineNumber: number
+	executionCheckpoint: ExecutionCheckpoint
 ): ChangeSpec {
 	const resetChange = editorView.state.changes({
 		from: 0,
@@ -380,17 +391,18 @@ function getExecutionAnnotationsChanges(
 
 	const cleanState = EditorState.create({ doc: activePythonCode });
 
-	if (lineNumber === -1) {
+	if (executionCheckpoint.startLineNumber == null) {
 		return resetChange;
 	}
 
 	const annotationChanges =
 		cleanState.changes(
-			pythonCodeAnalysisResult.trackedVariableMap[lineNumber]
+			pythonCodeAnalysisResult.trackedVariableMap[executionCheckpoint.startLineNumber]
 				.map((trackedVariable: TrackedVariable) => ({
-					from: cleanState.doc.line(trackedVariable.definitionLineNumber).to,
+					from: cleanState.doc.line(trackedVariable.definitionLineNumberRange.end).to,
 					insert: ` # ${trackedVariable.name} = ${
 						executionCheckpoint.scopeLocals[trackedVariable.name]}`
+							.replaceAll('\n', '\\n')
 				}))
 		);
 

@@ -23,7 +23,8 @@ export type SortingElement = {
 };
 
 export type ExecutionCheckpoint = {
-	lineNumber: number,
+	startLineNumber: number,
+	endLineNumber: number,
 	scopeLocals: object,
 	sortingList: SortingElement[]
 };
@@ -32,8 +33,6 @@ export type ExecutionState = 'stopped' | 'paused' | 'running' | 'finished';
 
 export interface ControlState {
 	sortingListVariableName: string;
-	sortingListSourceCodeStart: number,
-	sortingListSourceCodeEnd: number,
 	sortingList: SortingElement[];
 	setSortingListData: (
 		name: string,
@@ -98,20 +97,11 @@ export const useControlStore =
 	create(
 		subscribeWithSelector<ControlState>((setState: SetState, getState: GetState) => ({
 			sortingListVariableName: '',
-			sortingListSourceCodeStart: -1,
-			sortingListSourceCodeEnd: -1,
 			sortingList: [],
 
-			setSortingListData: (
-				name: string,
-				start: number,
-				end: number,
-				list: number[]
-			) => {
+			setSortingListData: (name: string, list: number[]) => {
 				setState({
 					sortingListVariableName: name,
-					sortingListSourceCodeStart: start,
-					sortingListSourceCodeEnd: end,
 					sortingList: list.map((value, index) => ({
 						identifier: index,
 						value
@@ -184,8 +174,6 @@ function reassessReadyToExecuteCode(setState: SetState): void {
 	setState((state: ControlState) => ({
 		readyToExecuteCode:
 			state.sortingListVariableName !== '' &&
-			state.sortingListSourceCodeStart !== -1 &&
-			state.sortingListSourceCodeEnd !== -1 &&
 			state.pythonExecutionWorkerReady
 	}));
 }
@@ -293,6 +281,7 @@ function handleExecutionWaitingForInput(): void {
 	const encoder: TextEncoder = new TextEncoder();
 	const encodedData: Uint8Array = encoder.encode(input);
 
+	dataBuffer.fill(0);
 	dataBuffer.set(encodedData);
 
 	Atomics.store(controlBuffer, 0, CONTROL_BUFFER_VALUES.dataAvailable);
@@ -301,6 +290,11 @@ function handleExecutionWaitingForInput(): void {
 
 function setExecutionSpeed(speed: number, getState: GetState, setState: SetState): void {
 	setState({ executionSpeed: speed });
+
+	if (getState().executionState !== 'running') {
+		return;
+	}
+
 	clearTimeout(resumeExecutionTimeoutIdentifier);
 	resumeAfterDelay(getState, setState);
 }
@@ -322,12 +316,11 @@ function startExecution(getState: GetState, setState: SetState): void {
 		setState((state: ControlState) => ({
 			pythonCodeAnalysisResult: analyzePythonCode(
 				state.activePythonCode,
-				state.sortingListVariableName,
-				state.sortingListSourceCodeStart,
-				state.sortingListSourceCodeEnd
+				state.sortingListVariableName
 			)
 		}));
 	} catch (error) {
+		console.error(error);
 		setState({
 			consoleContent: [{
 				text: error.message,

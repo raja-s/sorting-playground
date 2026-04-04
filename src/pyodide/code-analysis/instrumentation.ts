@@ -1,4 +1,9 @@
 
+import {
+	type SaveExecutionCheckpointLineNumberRanges,
+	type NestedElifLinesExtraLevels
+} from './codeAnalysis.ts';
+
 import basePythonUrl from '../base.py?url';
 
 export type LineNumberMapping = {
@@ -8,7 +13,7 @@ export type LineNumberMapping = {
 export type InstrumentationResult = {
 	instrumentedCode: string,
 	lineNumberMapping: LineNumberMapping
-}
+};
 
 const basePython: Response = await fetch(basePythonUrl);
 const basePythonCode: string = await basePython.text();
@@ -16,8 +21,8 @@ const basePythonCode: string = await basePython.text();
 export function instrumentCode(
 	userPythonCode: string,
 	sortingListVariableName: string,
-	sortingListSourceCodeStart: number,
-	sortingListSourceCodeEnd: number
+	saveExecutionCheckpointLineNumberRanges: SaveExecutionCheckpointLineNumberRanges,
+	nestedElifLinesExtraLevels: NestedElifLinesExtraLevels
 ): InstrumentationResult {
 	const basePythonCodeParts = basePythonCode.split('#USER_CODE_INSERTION_HANDLE#');
 
@@ -25,71 +30,60 @@ export function instrumentCode(
 		basePythonCodeParts[0].trimEnd()
 			.replaceAll('SORTING_LIST_VARIABLE_NAME', sortingListVariableName);
 
-	let instrumentedCodeLineNumber = instrumentedCode.split('\n').length;
+	let instrumentedCodeLineCount = instrumentedCode.split('\n').length;
 
 	const lineNumberMapping: LineNumberMapping = {};
 
-	const modifiedUserPythonCode: string =
-		userPythonCode.slice(0, sortingListSourceCodeStart) +
-		'enrich_list(' +
-		userPythonCode.slice(sortingListSourceCodeStart, sortingListSourceCodeEnd) +
-		')' +
-		userPythonCode.slice(sortingListSourceCodeEnd);
-
-	const codeLines: string[] = modifiedUserPythonCode.split('\n');
+	const codeLines: string[] = userPythonCode.split('\n');
 
 	for (let i = 0 ; i < codeLines.length ; i++) {
 		const lineNumber: number = i + 1;
 		const codeLine: string = codeLines[i];
 		const trimmedCodeLine: string = codeLine.trim();
 
+		const baseIndentationSize: number = 4;
+
 		if (
-			trimmedCodeLine !== '' &&
-			!trimmedCodeLine.startsWith('#') &&
-			!trimmedCodeLine.startsWith('def ') &&
-			!/^else *:/.test(trimmedCodeLine)
+			lineNumber in saveExecutionCheckpointLineNumberRanges &&
+			!trimmedCodeLine.startsWith('elif ')
 		) {
 			const indentationSize: number =
-				(codeLine.match(/^ */) as RegExpMatchArray)[0].length + 4;
+				baseIndentationSize + (codeLine.match(/^ */) as RegExpMatchArray)[0].length +
+					(nestedElifLinesExtraLevels[lineNumber] | 0) * 4;
+
+			const range = saveExecutionCheckpointLineNumberRanges[lineNumber];
+
 			instrumentedCode +=
-				`\n${' '.repeat(indentationSize)}save_execution_checkpoint_and_pause(${lineNumber}, locals())`;
-			instrumentedCodeLineNumber++;
+				`\n${' '.repeat(indentationSize)}save_execution_checkpoint_and_pause(${
+					range.start}, ${range.end}, locals())`;
+			instrumentedCodeLineCount++;
 		}
 
-		if (trimmedCodeLine.startsWith('if ') || trimmedCodeLine.startsWith('elif ')) {
-			let adaptedCodeLine: string = '';
+		if (
+			lineNumber in saveExecutionCheckpointLineNumberRanges &&
+			trimmedCodeLine.startsWith('elif ')
+		) {
+			const indentationSize: number =
+				baseIndentationSize + (codeLine.match(/^ */) as RegExpMatchArray)[0].length;
+			const elseIndentationSize: number =
+				indentationSize + (nestedElifLinesExtraLevels[lineNumber] - 1) * 4;
+			const elseBodyIndentationSize: number = elseIndentationSize + 4;
 
-			const handle = `${sortingListVariableName}[`;
+			const range = saveExecutionCheckpointLineNumberRanges[lineNumber];
 
-			let position = 0;
-			let handleStartPosition = codeLine.indexOf(handle, position);
-
-			while (handleStartPosition !== -1 &&
-				[' ', '<', '>', '='].includes(codeLine.charAt(handleStartPosition - 1)))
-			{
-				const closingBracketPosition = codeLine.indexOf(']', handleStartPosition + handle.length);
-
-				if (closingBracketPosition !== -1) {
-					adaptedCodeLine += codeLine.slice(position, closingBracketPosition + 1);
-					adaptedCodeLine += '[\'value\']';
-					position = closingBracketPosition + 1;
-				} else {
-					adaptedCodeLine += codeLine.slice(position, handleStartPosition + handle.length);
-					position = handleStartPosition + handle.length;
-				}
-
-				handleStartPosition = codeLine.indexOf(handle, position);
-			}
-
-			adaptedCodeLine += codeLine.slice(position);
-			instrumentedCode += `\n    ${adaptedCodeLine}`;
+			instrumentedCode += `\n${' '.repeat(elseIndentationSize)}else:` +
+				`\n${' '.repeat(elseBodyIndentationSize)}save_execution_checkpoint_and_pause(${
+					range.start}, ${range.end}, locals())` +
+				`\n${' '.repeat(elseBodyIndentationSize)}if ${trimmedCodeLine.slice(5)}`;
+			instrumentedCodeLineCount += 2;
 		} else {
-			instrumentedCode += `\n    ${codeLine}`;
+			const extraLevels: number = nestedElifLinesExtraLevels[lineNumber] | 0;
+			instrumentedCode += `\n${' '.repeat(baseIndentationSize + extraLevels * 4)}${codeLine}`;
+			instrumentedCodeLineCount++;
 		}
 
-		instrumentedCodeLineNumber++;
 		if (trimmedCodeLine !== '' && !trimmedCodeLine.startsWith('#')) {
-			lineNumberMapping[instrumentedCodeLineNumber] = lineNumber;
+			lineNumberMapping[instrumentedCodeLineCount] = lineNumber;
 		}
 	}
 
@@ -97,7 +91,7 @@ export function instrumentCode(
 		instrumentedCode += '\n';
 	}
 
-	instrumentedCode += '    save_execution_checkpoint_and_pause(-1, locals())\n'
+	instrumentedCode += '    save_execution_checkpoint_and_pause(None, None, locals())\n'
 
 	instrumentedCode += basePythonCodeParts[1].trimStart();
 
