@@ -8,7 +8,8 @@
 		"code_controls": {
 			"open_button": "Ouvrir",
 			"download_button": "Télécharger",
-			"share_button": "Partager"
+			"share_button": "Partager",
+			"share_button_success_message": "Lien de partage copié avec succès."
 		},
 		"main_execution_controls": {
 			"execution_speed": "Vitesse d'exécution",

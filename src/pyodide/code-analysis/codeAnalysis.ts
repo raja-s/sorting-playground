@@ -315,7 +315,6 @@ export function analyzePythonCode(
 	sortingListVariableName: string
 ): CodeAnalysisResult {
 	const ast = parse(sourceCode);
-	console.log(ast);
 	const analyzer = new PythonCodeAnalyzer(sourceCode, sortingListVariableName);
 
 	new NodeEndsSetterVisitor(sourceCode).visit(ast);

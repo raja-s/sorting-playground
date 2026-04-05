@@ -1,6 +1,7 @@
 
 import { create } from 'zustand';
-import { subscribeWithSelector } from 'zustand/middleware';
+import { createJSONStorage, persist, subscribeWithSelector } from 'zustand/middleware';
+import { URL_FRAGMENT_STATE_VARIABLE_NAME, compressDataIntoUrl, urlStorage } from './urlStorage.ts';
 
 import {
 	MESSAGE_TYPES,
@@ -34,12 +35,7 @@ export type ExecutionState = 'stopped' | 'paused' | 'running' | 'finished';
 export interface ControlState {
 	sortingListVariableName: string;
 	sortingList: SortingElement[];
-	setSortingListData: (
-		name: string,
-		start: number,
-		end: number,
-		list: number[]
-	) => void;
+	setSortingListData: (name: string, list: number[]) => void;
 
 	pythonExecutionWorkerReady: boolean;
 	pythonExecutionWorker: Worker;
@@ -49,8 +45,8 @@ export interface ControlState {
 	activePythonCode: string;
 	setActivePythonCode: (code: string) => void;
 
-	fileOpenTriggerValue: number;
-	setFileOpenTriggerValue: () => void;
+	editorReloadCodeTriggerValue: number;
+	bumpEditorReloadCodeTriggerValue: () => void;
 
 	consoleContent: ConsoleContent[];
 	appendToConsole: (content: ConsoleContent) => void;
@@ -77,6 +73,8 @@ export interface ControlState {
 
 	focusComparedBars: boolean;
 	toggleFocusComparedBars: () => void;
+
+	generateShareLink: () => string;
 }
 
 type GetState = () => ControlState;
@@ -94,81 +92,130 @@ const interruptBuffer: Uint8Array = new Uint8Array(new SharedArrayBuffer(1));
 let resumeExecutionTimeoutIdentifier: number = -1;
 
 export const useControlStore =
-	create(
-		subscribeWithSelector<ControlState>((setState: SetState, getState: GetState) => ({
-			sortingListVariableName: '',
-			sortingList: [],
+	create<ControlState>()(
+		subscribeWithSelector(
+			persist(
+				(setState: SetState, getState: GetState) => ({
+					sortingListVariableName: '',
+					sortingList: [],
 
-			setSortingListData: (name: string, list: number[]) => {
-				setState({
-					sortingListVariableName: name,
-					sortingList: list.map((value, index) => ({
-						identifier: index,
-						value
-					}))
-				});
-				reassessReadyToExecuteCode(setState);
-			},
+					setSortingListData: (name: string, list: number[]) => {
+						setState({
+							sortingListVariableName: name,
+							sortingList: list.map((value, index) => ({
+								identifier: index,
+								value
+							}))
+						});
+						reassessReadyToExecuteCode(setState);
+					},
 
-			pythonExecutionWorkerReady: false,
-			pythonExecutionWorker: initializePythonExecutionWorker(getState, setState),
+					pythonExecutionWorkerReady: false,
+					pythonExecutionWorker: initializePythonExecutionWorker(getState, setState),
 
-			readyToExecuteCode: false,
+					readyToExecuteCode: false,
 
-			activePythonCode: '',
-			setActivePythonCode: (code: string) => { setState({ activePythonCode: code }); },
+					activePythonCode: '',
+					setActivePythonCode: (code: string) => { setState({ activePythonCode: code }); },
 
-			fileOpenTriggerValue: 0,
-			setFileOpenTriggerValue: () => {
-				setState((state: ControlState) => ({
-					fileOpenTriggerValue: state.fileOpenTriggerValue + 1
-				}));
-			},
+					editorReloadCodeTriggerValue: 0,
+					bumpEditorReloadCodeTriggerValue: () => {
+						setState((state: ControlState) => ({
+							editorReloadCodeTriggerValue: state.editorReloadCodeTriggerValue + 1
+						}));
+					},
 
-			consoleContent: [],
-			appendToConsole: (content: ConsoleContent) => {
-				setState((state: ControlState) => ({
-					consoleContent: state.consoleContent.concat([ content ])
-				}));
-			},
+					consoleContent: [],
+					appendToConsole: (content: ConsoleContent) => {
+						setState((state: ControlState) => ({
+							consoleContent: state.consoleContent.concat([ content ])
+						}));
+					},
 
-			pythonCodeAnalysisResult: {
-				trackedVariableMap: {},
-				comparisonMap: {},
-				instrumentationResult: {
-					instrumentedCode: '',
-					lineNumberMapping: {}
+					pythonCodeAnalysisResult: {
+						trackedVariableMap: {},
+						comparisonMap: {},
+						instrumentationResult: {
+							instrumentedCode: '',
+							lineNumberMapping: {}
+						}
+					},
+
+					executionHistory: [],
+					executionHistoryPosition: 0,
+
+					executionSpeed: 5,
+					setExecutionSpeed: (speed: number) => {
+						setExecutionSpeed(speed, getState, setState);
+					},
+
+					executionState: 'stopped',
+					runExecution: () => { runExecution(getState, setState); },
+					pauseExecution: () => { pauseExecution(setState); },
+					stopExecution: () => { stopExecution(setState); },
+					resetExecution: () => { resetExecution(setState); },
+
+					stepBackward: () => { stepBackward(setState); },
+					stepForward: () => { stepForward(getState, setState); },
+
+					barsColored: true,
+					toggleBarsColored: () => {
+						setState((state: ControlState) => ({ barsColored: !state.barsColored }));
+					},
+
+					focusComparedBars: true,
+					toggleFocusComparedBars: () => {
+						setState((state: ControlState) => ({ focusComparedBars: !state.focusComparedBars }));
+					},
+
+					generateShareLink: () => {
+						const state: ControlState = getState();
+
+						const dataToCompress: Partial<ControlState> = {
+							sortingListVariableName: state.sortingListVariableName,
+							sortingList:             state.sortingList,
+							activePythonCode:        state.activePythonCode,
+							executionSpeed:          state.executionSpeed,
+							barsColored:             state.barsColored,
+							focusComparedBars:       state.focusComparedBars
+						};
+
+						const persistentWrapper = {
+							state: dataToCompress,
+							version: 0
+						};
+
+						return compressDataIntoUrl(JSON.stringify(persistentWrapper));
+					}
+				}),
+				{
+					name: URL_FRAGMENT_STATE_VARIABLE_NAME,
+					storage: createJSONStorage(() => urlStorage),
+
+					partialize: (state: ControlState): Partial<ControlState> => ({
+						sortingListVariableName: state.sortingListVariableName,
+						sortingList:             state.sortingList,
+						activePythonCode:        state.activePythonCode,
+						executionSpeed:          state.executionSpeed,
+						barsColored:             state.barsColored,
+						focusComparedBars:       state.focusComparedBars
+					})
 				}
-			},
-
-			executionHistory: [],
-			executionHistoryPosition: 0,
-
-			executionSpeed: 5,
-			setExecutionSpeed: (speed: number) => {
-				setExecutionSpeed(speed, getState, setState);
-			},
-
-			executionState: 'stopped',
-			runExecution: () => { runExecution(getState, setState); },
-			pauseExecution: () => { pauseExecution(setState); },
-			stopExecution: () => { stopExecution(setState); },
-			resetExecution: () => { resetExecution(setState); },
-
-			stepBackward: () => { stepBackward(setState); },
-			stepForward: () => { stepForward(getState, setState); },
-
-			barsColored: true,
-			toggleBarsColored: () => {
-				setState((state: ControlState) => ({ barsColored: !state.barsColored }));
-			},
-
-			focusComparedBars: true,
-			toggleFocusComparedBars: () => {
-				setState((state: ControlState) => ({ focusComparedBars: !state.focusComparedBars }));
-			}
-		}))
+			)
+		)
 	);
+
+if (useControlStore.persist.hasHydrated()) {
+	handleHydrationFromUrlComplete(useControlStore.getState());
+} else {
+	useControlStore.persist.onFinishHydration((state: ControlState) => {
+		handleHydrationFromUrlComplete(state);
+	});
+}
+
+function handleHydrationFromUrlComplete(state: ControlState): void {
+	state.bumpEditorReloadCodeTriggerValue();
+}
 
 function reassessReadyToExecuteCode(setState: SetState): void {
 	setState((state: ControlState) => ({

@@ -163,7 +163,8 @@ export function CodeEditor(props: CodeEditorProps) {
 	const setSortingListData = useControlStore(state => state.setSortingListData);
 	const activePythonCode = useControlStore(state => state.activePythonCode);
 	const setActivePythonCode = useControlStore(state => state.setActivePythonCode);
-	const fileOpenTriggerValue = useControlStore(state => state.fileOpenTriggerValue);
+	const editorReloadCodeTriggerValue = useControlStore(state => state.editorReloadCodeTriggerValue);
+	const bumpEditorReloadCodeTriggerValue = useControlStore(state => state.bumpEditorReloadCodeTriggerValue);
 	const pythonCodeAnalysisResult = useControlStore(state => state.pythonCodeAnalysisResult);
 	const executionHistory = useControlStore(state => state.executionHistory);
 	const executionHistoryPosition = useControlStore(state => state.executionHistoryPosition);
@@ -177,7 +178,9 @@ export function CodeEditor(props: CodeEditorProps) {
 	});
 
 	useEffect(() => {
-		setActivePythonCode(props.startingCode);
+		if (activePythonCode === '') {
+			setActivePythonCode(props.startingCode);
+		}
 	}, []);
 
 	useEffect(
@@ -202,7 +205,7 @@ export function CodeEditor(props: CodeEditorProps) {
 
 	useEffect(() => {
 		setEntireEditorCode(editorViewRef.current, activePythonCode);
-	}, [ fileOpenTriggerValue ]);
+	}, [ editorReloadCodeTriggerValue ]);
 
 	const extensions = useMemo(() => [
 		python(),
@@ -222,6 +225,7 @@ export function CodeEditor(props: CodeEditorProps) {
 		<ReactCodeEditor
 			onCreateEditor={view => {
 				editorViewRef.current = view;
+				bumpEditorReloadCodeTriggerValue();
 			}}
 			value={props.startingCode}
 			readOnly={executionState !== 'stopped'}

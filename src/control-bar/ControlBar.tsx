@@ -1,4 +1,7 @@
 
+import { useState } from 'react';
+
+import Alert from '@mui/material/Alert';
 import Checkbox from '@mui/material/Checkbox';
 import Divider from '@mui/material/Divider';
 import FormControlLabel from '@mui/material/FormControlLabel';
@@ -7,6 +10,7 @@ import IconButton from '@mui/material/IconButton';
 import MenuItem from '@mui/material/MenuItem';
 import Select from '@mui/material/Select';
 import Slider from '@mui/material/Slider';
+import Snackbar from '@mui/material/Snackbar';
 import Stack from '@mui/material/Stack';
 import Tooltip from '@mui/material/Tooltip';
 import Typography from '@mui/material/Typography';
@@ -20,6 +24,8 @@ import RestartAltIcon from '@mui/icons-material/RestartAlt';
 import ShareIcon from '@mui/icons-material/Share';
 import StopIcon from '@mui/icons-material/Stop';
 import UndoIcon from '@mui/icons-material/Undo';
+
+import { useHotkeys } from 'react-hotkeys-hook';
 
 import { useTranslation } from 'react-i18next';
 
@@ -37,7 +43,7 @@ export function ControlBar() {
 	const activePythonCode = useControlStore(state => state.activePythonCode);
 	const setActivePythonCode = useControlStore(state => state.setActivePythonCode);
 
-	const setFileOpenTriggerValue = useControlStore(state => state.setFileOpenTriggerValue);
+	const bumpEditorReloadCodeTriggerValue = useControlStore(state => state.bumpEditorReloadCodeTriggerValue);
 
 	const executionHistory = useControlStore(state => state.executionHistory);
 	const executionHistoryPosition: number = useControlStore(state => state.executionHistoryPosition);
@@ -59,6 +65,37 @@ export function ControlBar() {
 	const focusComparedBars: boolean = useControlStore(state => state.focusComparedBars);
 	const toggleFocusComparedBars = useControlStore(state => state.toggleFocusComparedBars);
 
+	const generateShareLink = useControlStore(state => state.generateShareLink);
+
+	const [ shareLinkCopiedSnackbarOpen, setShareLinkCopiedSnackbarOpen ] = useState(false);
+
+	useHotkeys('mod+o', async (event) => {
+		event.preventDefault();
+		await openFileToActivePythonCode(setActivePythonCode, bumpEditorReloadCodeTriggerValue);
+	}, {
+		enableOnContentEditable: true,
+		enableOnFormTags: true
+	});
+
+	useHotkeys('mod+d', async (event) => {
+		event.preventDefault();
+		await saveActivePythonCodeToFile(activePythonCode);
+	}, {
+		enableOnContentEditable: true,
+		enableOnFormTags: true
+	});
+
+	useHotkeys('mod+s', async (event) => {
+		event.preventDefault();
+		await generateAndCopyShareLink(
+			generateShareLink,
+			setShareLinkCopiedSnackbarOpen
+		);
+	}, {
+		enableOnContentEditable: true,
+		enableOnFormTags: true
+	});
+
 	return (
 		<Grid
 			size={12}
@@ -79,13 +116,7 @@ export function ControlBar() {
 					<Tooltip title={translate('control_bar.code_controls.open_button')}>
 						<IconButton
 							onClick={async () => {
-								const blob: Blob = await fileOpen({
-									mimeTypes: [ 'text/x-python' ],
-									extensions: [ '.py' ],
-									description: 'Python scripts'
-								});
-								setActivePythonCode(await blob.text());
-								setFileOpenTriggerValue();
+								await openFileToActivePythonCode(setActivePythonCode, bumpEditorReloadCodeTriggerValue);
 							}}
 						>
 							<FolderIcon fontSize='large' />
@@ -94,27 +125,35 @@ export function ControlBar() {
 					<Tooltip title={translate('control_bar.code_controls.download_button')}>
 						<IconButton
 							onClick={async () => {
-								const blob: Blob = new Blob(
-									[ activePythonCode ],
-									{ type: 'text/x-python'
-								});
-								await fileSave(
-									blob,
-									{
-										fileName: 'script.py',
-										extensions: [ '.py' ]
-									}
-								);
+								await saveActivePythonCodeToFile(activePythonCode);
 							}}
 						>
 							<DownloadIcon fontSize='large' />
 						</IconButton>
 					</Tooltip>
 					<Tooltip title={translate('control_bar.code_controls.share_button')}>
-						<IconButton>
+						<IconButton
+							onClick={async () => {
+								await generateAndCopyShareLink(
+									generateShareLink,
+									setShareLinkCopiedSnackbarOpen
+								);
+							}}
+						>
 							<ShareIcon fontSize='large' />
 						</IconButton>
 					</Tooltip>
+					<Snackbar
+						open={shareLinkCopiedSnackbarOpen}
+						anchorOrigin={{ vertical: 'top', horizontal: 'right' }}
+						autoHideDuration={3000}
+						onClose={() => { setShareLinkCopiedSnackbarOpen(false); }}
+					>
+						<Alert
+							severity='success'
+							variant='filled'
+						>{translate('control_bar.code_controls.share_button_success_message')}</Alert>
+					</Snackbar>
 				</Stack>
 				{VerticalDivider()}
 				<Stack
@@ -247,6 +286,42 @@ export function ControlBar() {
 			</Stack>
 		</Grid>
 	);
+}
+
+async function openFileToActivePythonCode(
+	setActivePythonCode: (code: string) => void,
+	bumpEditorReloadCodeTriggerValue: () => void
+): Promise<void> {
+	const blob: Blob = await fileOpen({
+		mimeTypes: [ 'text/x-python' ],
+		extensions: [ '.py' ],
+		description: 'Python scripts'
+	});
+	setActivePythonCode(await blob.text());
+	bumpEditorReloadCodeTriggerValue();
+}
+
+async function saveActivePythonCodeToFile(activePythonCode: string): Promise<void> {
+	const blob: Blob = new Blob(
+		[ activePythonCode ],
+		{ type: 'text/x-python' }
+	);
+	await fileSave(
+		blob,
+		{
+			fileName: 'script.py',
+			extensions: [ '.py' ]
+		}
+	);
+}
+
+async function generateAndCopyShareLink(
+	generateShareLink: () => string,
+	setShareLinkCopiedSnackbarOpen: (open: boolean) => void
+): Promise<void> {
+	const shareLink = generateShareLink();
+	await navigator.clipboard.writeText(shareLink);
+	setShareLinkCopiedSnackbarOpen(true);
 }
 
 function VerticalDivider() {
