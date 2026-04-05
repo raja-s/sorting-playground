@@ -4,7 +4,7 @@ import {
 	type NestedElifLinesExtraLevels
 } from './codeAnalysis.ts';
 
-import basePythonUrl from '../base.py?url';
+import basePythonUrl from './base.py?url';
 
 export type LineNumberMapping = {
 	[instrumentedCodeLineNumber: number]: number
