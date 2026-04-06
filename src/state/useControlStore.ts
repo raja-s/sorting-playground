@@ -142,6 +142,10 @@ export const useControlStore =
 					pythonCodeAnalysisResult: {
 						trackedVariableMap: {},
 						visualizedVariableMap: {},
+						visualizedVariablesConfiguration: {
+							variableCount: 0,
+							levelDistribution: {}
+						},
 						comparisonMap: {},
 						instrumentationResult: {
 							instrumentedCode: '',
