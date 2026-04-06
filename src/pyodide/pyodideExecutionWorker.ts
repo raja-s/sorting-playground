@@ -97,7 +97,8 @@ function handlePythonInput(
 function sendCheckpointAndPauseExecution(
 	controlBuffer: Int32Array
 ): string {
-	const checkpoint = JSON.parse(pyodide.FS.readFile(CHECKPOINT_FILE_PATH, { encoding: 'utf8' }));
+	const checkpoint: object =
+		JSON.parse(pyodide.FS.readFile(CHECKPOINT_FILE_PATH, { encoding: 'utf8' }));
 
 	self.postMessage({
 		type: MESSAGE_TYPES.executionCheckpoint,

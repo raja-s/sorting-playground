@@ -9,7 +9,7 @@ import * as THREE from 'three';
 
 import { useApplicationStore } from '../state/useApplicationStore.ts';
 import { type SortingList } from '../state/SortingList.ts';
-import { type ExecutionCheckpoint, type ExecutionHistory } from '../state/ExecutionCheckpoint.ts';
+import ExecutionCheckpoint, { type ExecutionHistory } from '../state/ExecutionCheckpoint.ts';
 
 import { type CodeAnalysisResult, type SortingListComparison } from '../pyodide/code-analysis/codeAnalysis.ts';
 

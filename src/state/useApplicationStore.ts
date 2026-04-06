@@ -14,7 +14,7 @@ import { analyzePythonCode } from '../pyodide/code-analysis/codeAnalysis.ts';
 
 import type ApplicationState from './ApplicationState.ts';
 import { type ExecutionState } from './ApplicationState.ts';
-import { type ExecutionCheckpoint } from './ExecutionCheckpoint.ts';
+import ExecutionCheckpoint from './ExecutionCheckpoint.ts';
 
 export type ConsoleContentType = 'standard_output' | 'error';
 
@@ -256,7 +256,7 @@ function handleExecutionFinished(setState: SetState) {
 }
 
 function handleExecutionCheckpoint(
-	checkpoint: ExecutionCheckpoint,
+	checkpointObject: object,
 	getState: GetState,
 	setState: SetState
 ): void {
@@ -265,26 +265,8 @@ function handleExecutionCheckpoint(
 	}
 
 	setState((state: ApplicationState) => {
-		if (state.executionHistory.length === 0) {
-			checkpoint.stackLevel = 0;
-			checkpoint.parentCheckpoint = null;
-		} else {
-			let i: number = state.executionHistory.length - 1;
-
-			while (i >= 0) {
-				if (checkpoint.frameIdentifier === state.executionHistory[i].frameIdentifier) {
-					checkpoint.stackLevel = state.executionHistory[i].stackLevel;
-					checkpoint.parentCheckpoint = state.executionHistory[i].parentCheckpoint;
-					break;
-				} else if (checkpoint.parentFrameIdentifier === state.executionHistory[i].frameIdentifier) {
-					checkpoint.stackLevel = state.executionHistory[i].stackLevel + 1;
-					checkpoint.parentCheckpoint = state.executionHistory[i];
-					break;
-				}
-
-				i--;
-			}
-		}
+		const checkpoint: ExecutionCheckpoint =
+			new ExecutionCheckpoint(checkpointObject, state.executionHistory);
 
 		return {
 			executionHistory: state.executionHistory.concat([ checkpoint ]),

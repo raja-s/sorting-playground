@@ -4,7 +4,7 @@ import { Text } from '@react-three/drei';
 
 import { useApplicationStore } from '../state/useApplicationStore.ts';
 import { type ExecutionState } from '../state/ApplicationState.ts';
-import { type ExecutionCheckpoint, type ExecutionHistory } from '../state/ExecutionCheckpoint.ts';
+import ExecutionCheckpoint, { type ExecutionHistory } from '../state/ExecutionCheckpoint.ts';
 
 import { type CodeAnalysisResult, type Variable } from '../pyodide/code-analysis/codeAnalysis.ts';
 

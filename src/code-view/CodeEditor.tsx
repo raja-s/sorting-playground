@@ -22,7 +22,7 @@ import ReactCodeEditor from '@uiw/react-codemirror';
 
 import { useApplicationStore } from '../state/useApplicationStore.ts';
 import { type ExecutionState } from '../state/ApplicationState.ts';
-import { type ExecutionCheckpoint, type ExecutionHistory } from '../state/ExecutionCheckpoint.ts';
+import ExecutionCheckpoint, { type ExecutionHistory } from '../state/ExecutionCheckpoint.ts';
 
 import {
 	type Variable,
