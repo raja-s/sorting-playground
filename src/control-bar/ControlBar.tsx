@@ -3,6 +3,7 @@ import { useState } from 'react';
 
 import Alert from '@mui/material/Alert';
 import Checkbox from '@mui/material/Checkbox';
+import CircularProgress from '@mui/material/CircularProgress';
 import Divider from '@mui/material/Divider';
 import FormControlLabel from '@mui/material/FormControlLabel';
 import Grid from '@mui/material/Grid';
@@ -38,6 +39,7 @@ import { ControlIconButton } from './ControlIconButton.tsx';
 export function ControlBar() {
 	const translate = useTranslation().t;
 
+	const pythonExecutionWorkerReady = useControlStore(state => state.pythonExecutionWorkerReady);
 	const readyToExecuteCode = useControlStore(state => state.readyToExecuteCode);
 
 	const activePythonCode = useControlStore(state => state.activePythonCode);
@@ -187,7 +189,9 @@ export function ControlBar() {
 						}
 						onClick={runExecution}
 					>
-						<PlayArrowIcon fontSize='large' />
+						{pythonExecutionWorkerReady ?
+							<PlayArrowIcon fontSize='large' /> :
+							<CircularProgress size={25} />}
 					</ControlIconButton>
 					<ControlIconButton
 						color='pause'
@@ -246,7 +250,9 @@ export function ControlBar() {
 						}
 						onClick={stepForward}
 					>
-						<RedoIcon fontSize='large' />
+						{pythonExecutionWorkerReady ?
+							<RedoIcon fontSize='large' /> :
+							<CircularProgress size={25} />}
 					</ControlIconButton>
 				</Stack>
 				{VerticalDivider()}

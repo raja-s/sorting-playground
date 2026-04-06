@@ -2,7 +2,7 @@
 import * as React from 'react';
 
 import { type SxProps } from '@mui/system';
-import { type Theme, alpha } from '@mui/material/styles';
+import { type PaletteColor, type Theme, alpha } from '@mui/material/styles';
 
 import IconButton from '@mui/material/IconButton';
 import Tooltip from '@mui/material/Tooltip';
@@ -18,27 +18,34 @@ type ControlIconButtonProps = {
 
 export function ControlIconButton(props: ControlIconButtonProps) {
 	const sxProps: SxProps<Theme> = (theme: Theme) => {
+		const themeColor: PaletteColor | null =
+			props.color != null ? theme.palette[props.color] : null;
+
 		const buttonStyle: SxProps<Theme> = {
 			paddingX: '10px',
-			borderRadius: '8px'
+			borderRadius: '8px',
+			minHeight: '55px',
+			minWidth: '55px'
 		};
 
-		if (props.color != null) {
-			if (props.contained) {
-				buttonStyle.backgroundColor = `${props.color}.main`;
-				buttonStyle.color = `${props.color}.contrastText`;
-				buttonStyle['&:hover'] = {
-					backgroundColor: `${props.color}.dark`
-				};
-			} else {
-				buttonStyle.color = `${props.color}.main`;
-				buttonStyle['&:hover'] = {
-					backgroundColor: alpha(
-						theme.palette[props.color].main,
-						theme.palette.action.hoverOpacity
-					)
-				};
-			}
+		if (themeColor == null) {
+			return buttonStyle;
+		}
+
+		if (props.contained) {
+			buttonStyle.backgroundColor = themeColor.main;
+			buttonStyle.color = themeColor.contrastText;
+			buttonStyle['&:hover'] = {
+				backgroundColor: themeColor.dark
+			};
+		} else {
+			buttonStyle.color = themeColor.main;
+			buttonStyle['&:hover'] = {
+				backgroundColor: alpha(
+					themeColor.main,
+					theme.palette.action.hoverOpacity
+				)
+			};
 		}
 
 		return buttonStyle;
