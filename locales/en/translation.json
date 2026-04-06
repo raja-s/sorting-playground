@@ -1,14 +1,14 @@
 {
 	"code": {
 		"starting_list_variable_name": "values",
-		"list_variable_comment": "# The first statement must define a\n# variable as a list (of int)",
 		"to_do_comment": "# Sort the list here..."
 	},
 	"control_bar": {
 		"code_controls": {
 			"open_button": "Open",
 			"download_button": "Download",
-			"share_button": "Share"
+			"share_button": "Share",
+			"share_button_success_message": "Share link copied successfully."
 		},
 		"main_execution_controls": {
 			"execution_speed": "Execution speed",
