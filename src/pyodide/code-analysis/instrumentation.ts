@@ -1,8 +1,12 @@
 
+import SourceCode from './SourceCode.ts';
+
 import {
-	type SaveExecutionCheckpointLineNumberRanges,
+	type ExecutionCheckpointInstruction,
+	type ExecutionCheckpointInstructions,
 	type NestedElifLinesExtraLevels
 } from './codeAnalysis.ts';
+import { countOccurrences } from './common.ts';
 
 import basePythonUrl from './base.py?url';
 
@@ -18,49 +22,52 @@ export type InstrumentationResult = {
 const basePython: Response = await fetch(basePythonUrl);
 const basePythonCode: string = await basePython.text();
 
+const startingInstrumentedCodeLineCount: number =
+	countOccurrences(
+		'\n',
+		basePythonCode.split('#USER_CODE_INSERTION_HANDLE#')[0].trimEnd()
+	) + 1;
+
 export function instrumentCode(
-	userPythonCode: string,
+	userPythonCode: SourceCode,
 	sortingListVariableName: string,
-	saveExecutionCheckpointLineNumberRanges: SaveExecutionCheckpointLineNumberRanges,
+	executionCheckpointInstructions: ExecutionCheckpointInstructions,
 	nestedElifLinesExtraLevels: NestedElifLinesExtraLevels
 ): InstrumentationResult {
-	const basePythonCodeParts = basePythonCode.split('#USER_CODE_INSERTION_HANDLE#');
+	const basePythonCodeParts: string[] = basePythonCode.split('#USER_CODE_INSERTION_HANDLE#');
 
 	let instrumentedCode: string =
 		basePythonCodeParts[0].trimEnd()
 			.replaceAll('SORTING_LIST_VARIABLE_NAME', sortingListVariableName);
 
-	let instrumentedCodeLineCount = instrumentedCode.split('\n').length;
+	let instrumentedCodeLineCount: number = startingInstrumentedCodeLineCount;
 
 	const lineNumberMapping: LineNumberMapping = {};
 
-	const codeLines: string[] = userPythonCode.split('\n');
-
-	for (let i = 0 ; i < codeLines.length ; i++) {
+	for (let i = 0 ; i < userPythonCode.lines.length ; i++) {
 		const lineNumber: number = i + 1;
-		const codeLine: string = codeLines[i];
+		const codeLine: string = userPythonCode.lines[i];
 		const trimmedCodeLine: string = codeLine.trim();
 
 		const baseIndentationSize: number = 4;
 
 		if (
-			lineNumber in saveExecutionCheckpointLineNumberRanges &&
+			lineNumber in executionCheckpointInstructions &&
 			!trimmedCodeLine.startsWith('elif ')
 		) {
 			const indentationSize: number =
 				baseIndentationSize + (codeLine.match(/^ */) as RegExpMatchArray)[0].length +
 					(nestedElifLinesExtraLevels[lineNumber] | 0) * 4;
 
-			const range = saveExecutionCheckpointLineNumberRanges[lineNumber];
+			const instruction = executionCheckpointInstructions[lineNumber];
 
 			instrumentedCode +=
-				`\n${' '.repeat(indentationSize)}save_execution_checkpoint_and_pause(${
-					range.start}, ${range.end}, locals())`;
+				`\n${' '.repeat(indentationSize)}${createExecutionCheckpointCall(instruction)}`;
 			instrumentedCodeLineCount++;
 		}
 
 		if (
-			lineNumber in saveExecutionCheckpointLineNumberRanges &&
+			lineNumber in executionCheckpointInstructions &&
 			trimmedCodeLine.startsWith('elif ')
 		) {
 			const indentationSize: number =
@@ -69,11 +76,10 @@ export function instrumentCode(
 				indentationSize + (nestedElifLinesExtraLevels[lineNumber] - 1) * 4;
 			const elseBodyIndentationSize: number = elseIndentationSize + 4;
 
-			const range = saveExecutionCheckpointLineNumberRanges[lineNumber];
+			const instruction = executionCheckpointInstructions[lineNumber];
 
 			instrumentedCode += `\n${' '.repeat(elseIndentationSize)}else:` +
-				`\n${' '.repeat(elseBodyIndentationSize)}save_execution_checkpoint_and_pause(${
-					range.start}, ${range.end}, locals())` +
+				`\n${' '.repeat(elseBodyIndentationSize)}${createExecutionCheckpointCall(instruction)}` +
 				`\n${' '.repeat(elseBodyIndentationSize)}if ${trimmedCodeLine.slice(5)}`;
 			instrumentedCodeLineCount += 2;
 		} else {
@@ -91,9 +97,21 @@ export function instrumentCode(
 		instrumentedCode += '\n';
 	}
 
-	instrumentedCode += '    save_execution_checkpoint_and_pause(None, None, locals())\n'
+	instrumentedCode += '    _execution_checkpoint(True, None, locals(), inspect.stack())\n'
 
 	instrumentedCode += basePythonCodeParts[1].trimStart();
 
 	return { instrumentedCode, lineNumberMapping };
+}
+
+function createExecutionCheckpointCall(
+	instruction: ExecutionCheckpointInstruction
+): string {
+	return `_execution_checkpoint(${toPythonBoolean(instruction.syncWithController)
+		}, (${instruction.lineNumberRange.start}, ${instruction.lineNumberRange.end
+		}), locals(), inspect.stack())`;
+}
+
+function toPythonBoolean(value: boolean): string {
+	return value ? 'True' : 'False';
 }

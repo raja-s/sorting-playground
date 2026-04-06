@@ -1,7 +1,9 @@
 
 ##### Instrumentation Logic #####
 
+import inspect
 import json
+import uuid
 
 class TraceableListItemMeta(type):
     def __new__(metaclass, name, base_classes, attributes):
@@ -53,10 +55,6 @@ class TraceableListItem(metaclass=TraceableListItemMeta):
 
         TraceableListItem._next_item_identifier += 1
 
-    @property
-    def __class__(self):
-        return self._value.__class__
-
     def __getattr__(self, name):
         return getattr(self._value, name)
 
@@ -73,31 +71,21 @@ class TraceableListItem(metaclass=TraceableListItemMeta):
             'value':      self._value
         }
 
-def save_execution_checkpoint_and_pause(
-    start_line_number: int | None,
-    end_line_number: int | None,
-    scope_locals: dict
+def _execution_checkpoint(
+    sync_with_controller: bool,
+    line_number_range: tuple[int, int] | None,
+    scope_locals: dict,
+    stack: list[inspect.FrameInfo]
 ):
-    scope_locals_copy = scope_locals.copy()
+    def get_frame_identifier(frame_info: inspect.FrameInfo):
+        if '_frame_identifier' not in frame_info.frame.f_locals:
+            frame_info.frame.f_locals['_frame_identifier'] = str(uuid.uuid4())
+        return frame_info.frame.f_locals['_frame_identifier']
 
-    keys_to_clean_up = [
-        '__builtins__',
-        'json',
-        'TraceableListItemMeta',
-        'TraceableListItem',
-        'save_execution_checkpoint_and_pause',
-        'SORTING_LIST_VARIABLE_NAME'
-    ]
-    for key in keys_to_clean_up:
-        if key in scope_locals_copy:
-            del scope_locals_copy[key]
-
-    checkpoint = {
-        'startLineNumber': start_line_number,
-        'endLineNumber': end_line_number,
-        'scopeLocals': scope_locals_copy,
-        'sortingList': None
-    }
+    def json_default(input_object):
+        if isinstance(input_object, TraceableListItem):
+            return input_object.__to_json__()
+        return str(input_object)
 
     scope_globals: dict = globals()
 
@@ -106,13 +94,39 @@ def save_execution_checkpoint_and_pause(
             if not isinstance(item, TraceableListItem):
                 scope_globals['SORTING_LIST_VARIABLE_NAME'][i] = TraceableListItem(item)
 
-        checkpoint['sortingList'] = [
-            item.__to_json__()
-                for item in scope_globals['SORTING_LIST_VARIABLE_NAME']
-        ]
+    if not sync_with_controller:
+        return
+
+    scope_locals_copy: dict = scope_locals.copy()
+
+    keys_to_clean_up: list[str] = [
+        '__builtins__',
+        'inspect',
+        'json',
+        'uuid',
+        'TraceableListItemMeta',
+        'TraceableListItem',
+        '_frame_identifier',
+        '_execution_checkpoint',
+        'SORTING_LIST_VARIABLE_NAME'
+    ]
+    for key in keys_to_clean_up:
+        if key in scope_locals_copy:
+            del scope_locals_copy[key]
+
+    checkpoint: dict = {
+        'startLineNumber': None if line_number_range is None else line_number_range[0],
+        'endLineNumber': None if line_number_range is None else line_number_range[1],
+        'scopeLocals': scope_locals_copy,
+        'stackLevel': len(stack),
+        'frameIdentifier': get_frame_identifier(stack[0]),
+        'parentFrameIdentifier': get_frame_identifier(stack[1]),
+        'sortingList': None if 'SORTING_LIST_VARIABLE_NAME' not in scope_globals \
+            else scope_globals['SORTING_LIST_VARIABLE_NAME']
+    }
 
     with open('/execution-control/checkpoint.json', 'w') as checkpoint_file:
-        json.dump(checkpoint, checkpoint_file, indent='\t', default=str)
+        json.dump(checkpoint, checkpoint_file, indent='\t', default=json_default)
 
     input()
 

@@ -1,4 +1,9 @@
 
+export type TextCoordinates = {
+	lineNumber: number,
+	columnOffset: number
+};
+
 export type LineNumberRange = {
 	start: number,
 	end: number

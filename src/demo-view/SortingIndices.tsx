@@ -7,7 +7,7 @@ import {
 	type ExecutionState,
 	useControlStore
 } from '../state/useControlStore.ts';
-import { type CodeAnalysisResult, type TrackedVariable } from '../pyodide/code-analysis/codeAnalysis.ts';
+import { type CodeAnalysisResult, type Variable } from '../pyodide/code-analysis/codeAnalysis.ts';
 
 import { JETBRAINS_MONO_FONT_PATH } from './fonts.ts';
 
@@ -27,18 +27,32 @@ export function SortingIndices() {
 		return null;
 	}
 
+	const variableCount: number =
+		pythonCodeAnalysisResult.visualizedVariablesConfiguration.variableCount;
+
 	return (
 		<group>
 			{
-				pythonCodeAnalysisResult.trackedVariableMap[executionCheckpoint.startLineNumber]
-					.filter((variable: TrackedVariable) => variable.loopIterator)
-					.map((variable: TrackedVariable, index: number, array: TrackedVariable[]) => {
-						const value: number = executionCheckpoint.scopeLocals[variable.name] as number;
-						const color: string = indexColor(index, array.length);
+				pythonCodeAnalysisResult.visualizedVariableMap[executionCheckpoint.startLineNumber]
+					.filter((variable: Variable) => variable.identifier in
+						pythonCodeAnalysisResult.visualizedVariablesConfiguration.levelDistribution)
+					.map((variable: Variable) => {
+						let value: number;
+
+						try {
+							value = parseInt(executionCheckpoint.scopeLocals[variable.name]);
+						} catch (error) {
+							return null;
+						}
+
+						const level: number = pythonCodeAnalysisResult
+							.visualizedVariablesConfiguration.levelDistribution[variable.identifier];
+
+						const color: string = levelColor(level, variableCount);
 						return (
 							<group
-								key={index}
-								position={[value, -0.7 - index * 1.2, 0]}
+								key={level}
+								position={[value, 0.5 - level * 1.2, 0]}
 							>
 								<mesh
 									rotation={[0, 0, Math.PI / 2]}
@@ -61,7 +75,7 @@ export function SortingIndices() {
 	);
 }
 
-function indexColor(index: number, indexCount: number): string {
-	const hue = (index / indexCount) * 360;
+function levelColor(level: number, variableCount: number): string {
+	const hue = ((level - 1) / variableCount) * 360;
 	return `hsl(${hue}, 50%, 25%)`;
 }

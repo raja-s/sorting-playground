@@ -4,8 +4,11 @@ import { type RefObject, useEffect, useMemo, useRef, useState } from 'react';
 
 import {
 	Decoration,
+	type DecorationSet,
 	EditorView,
 	GutterMarker,
+	MatchDecorator,
+	ViewPlugin,
 	ViewUpdate,
 	keymap,
 	lineNumberMarkers
@@ -24,9 +27,10 @@ import {
 } from '../state/useControlStore.ts';
 
 import {
-	type TrackedVariable,
+	type Variable,
 	type CodeAnalysisResult
 } from '../pyodide/code-analysis/codeAnalysis.ts';
+import { SIMULATION_ANNOTATION_REGEX } from '../pyodide/code-analysis/SimulationAnnotation.ts';
 
 import { useTheme, type Theme as MuiTheme } from '@mui/material/styles';
 
@@ -38,6 +42,10 @@ const executingLineDecoration = Decoration.line({
 });
 const executionEndLineDecoration = Decoration.line({
 	attributes: { class: 'cm-executionEndLine' }
+});
+
+const simulationAnnotationDecoration = Decoration.mark({
+	class: 'cm-simulationAnnotation'
 });
 
 const executionStartLineGutterMarker = new (class extends GutterMarker {
@@ -141,6 +149,29 @@ const executingLineField = StateField.define({
 	]
 });
 
+const simulationAnnotationDecorator = new MatchDecorator({
+	regexp: SIMULATION_ANNOTATION_REGEX,
+	decoration: simulationAnnotationDecoration
+});
+
+class SimulationAnnotationPlugin {
+	decorations: DecorationSet;
+
+	constructor(view: EditorView) {
+		this.decorations = simulationAnnotationDecorator.createDeco(view);
+	}
+
+	update(update: ViewUpdate) {
+		this.decorations = simulationAnnotationDecorator.updateDeco(update, this.decorations);
+	}
+}
+
+const simulationAnnotationPlugin: ViewPlugin<SimulationAnnotationPlugin> =
+	ViewPlugin.fromClass(
+		SimulationAnnotationPlugin,
+		{ decorations: (plugin: SimulationAnnotationPlugin) => plugin.decorations }
+	);
+
 type CodeEditorProps = {
 	startingList: number[],
 	startingListVariableName: string,
@@ -216,6 +247,7 @@ export function CodeEditor(props: CodeEditorProps) {
 			handleCodeEditorChange(viewUpdate, executionState, setActivePythonCode, setState);
 		}),
 		executingLineField,
+		simulationAnnotationPlugin,
 		EditorView.editorAttributes.of({
 			class: executionState !== 'stopped' ? 'is-executing' : ''
 		})
@@ -402,7 +434,7 @@ function getExecutionAnnotationsChanges(
 	const annotationChanges =
 		cleanState.changes(
 			pythonCodeAnalysisResult.trackedVariableMap[executionCheckpoint.startLineNumber]
-				.map((trackedVariable: TrackedVariable) => ({
+				.map((trackedVariable: Variable) => ({
 					from: cleanState.doc.line(trackedVariable.definitionLineNumberRange.end).to,
 					insert: ` # ${trackedVariable.name} = ${
 						executionCheckpoint.scopeLocals[trackedVariable.name]}`
@@ -477,6 +509,12 @@ function getCodeEditorTheme(muiTheme: MuiTheme, state: State) {
 		},
 		'&.is-executing .cm-activeLineGutter:not(.cm-executingLineGutter)': {
 			backgroundColor: 'transparent'
+		},
+		'& .cm-simulationAnnotation > span': {
+			color: '#18a85e'
+		},
+		'& .cm-simulationAnnotation > .cm-matchingBracket > span': {
+			color: '#009046'
 		}
 	});
 }

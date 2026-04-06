@@ -9,6 +9,7 @@ import {
 	INTERRUPT_BUFFER_VALUES
 } from '../pyodide/pyodideExecutionWorkerApi.ts';
 
+import SimulationAnnotation from '../pyodide/code-analysis/SimulationAnnotation.ts';
 import { type CodeAnalysisResult, analyzePythonCode } from '../pyodide/code-analysis/codeAnalysis.ts';
 
 export type ConsoleContentType = 'standard_output' | 'error';
@@ -27,6 +28,10 @@ export type ExecutionCheckpoint = {
 	startLineNumber: number,
 	endLineNumber: number,
 	scopeLocals: object,
+	stackLevel: number,
+	frameIdentifier: string,
+	parentFrameIdentifier: string,
+	parentCheckpoint: ExecutionCheckpoint | null,
 	sortingList: SortingElement[]
 };
 
@@ -43,6 +48,7 @@ export interface ControlState {
 	readyToExecuteCode: boolean;
 
 	activePythonCode: string;
+	annotatedActivePythonCode: string;
 	setActivePythonCode: (code: string) => void;
 
 	editorReloadCodeTriggerValue: number;
@@ -116,6 +122,7 @@ export const useControlStore =
 					readyToExecuteCode: false,
 
 					activePythonCode: '',
+					annotatedActivePythonCode: '',
 					setActivePythonCode: (code: string) => { setState({ activePythonCode: code }); },
 
 					editorReloadCodeTriggerValue: 0,
@@ -134,6 +141,7 @@ export const useControlStore =
 
 					pythonCodeAnalysisResult: {
 						trackedVariableMap: {},
+						visualizedVariableMap: {},
 						comparisonMap: {},
 						instrumentationResult: {
 							instrumentedCode: '',
@@ -312,10 +320,33 @@ function handleExecutionCheckpoint(
 		return;
 	}
 
-	setState((state: ControlState) => ({
-		executionHistory: state.executionHistory.concat([ checkpoint ]),
-		executionHistoryPosition: state.executionHistoryPosition + 1
-	}));
+	setState((state: ControlState) => {
+		if (state.executionHistory.length === 0) {
+			checkpoint.stackLevel = 0;
+			checkpoint.parentCheckpoint = null;
+		} else {
+			let i: number = state.executionHistory.length - 1;
+
+			while (i >= 0) {
+				if (checkpoint.frameIdentifier === state.executionHistory[i].frameIdentifier) {
+					checkpoint.stackLevel = state.executionHistory[i].stackLevel;
+					checkpoint.parentCheckpoint = state.executionHistory[i].parentCheckpoint;
+					break;
+				} else if (checkpoint.parentFrameIdentifier === state.executionHistory[i].frameIdentifier) {
+					checkpoint.stackLevel = state.executionHistory[i].stackLevel + 1;
+					checkpoint.parentCheckpoint = state.executionHistory[i];
+					break;
+				}
+
+				i--;
+			}
+		}
+
+		return {
+			executionHistory: state.executionHistory.concat([ checkpoint ]),
+			executionHistoryPosition: state.executionHistoryPosition + 1
+		};
+	});
 
 	if (getState().executionState === 'running') {
 		resumeAfterDelay(getState, setState);
@@ -361,6 +392,7 @@ function runExecution(getState: GetState, setState: SetState): void {
 function startExecution(getState: GetState, setState: SetState): void {
 	try {
 		setState((state: ControlState) => ({
+			annotatedActivePythonCode: state.activePythonCode,
 			pythonCodeAnalysisResult: analyzePythonCode(
 				state.activePythonCode,
 				state.sortingListVariableName
@@ -377,6 +409,10 @@ function startExecution(getState: GetState, setState: SetState): void {
 		});
 		return;
 	}
+
+	getState().setActivePythonCode(
+		SimulationAnnotation.stripAll(getState().activePythonCode));
+	getState().bumpEditorReloadCodeTriggerValue();
 
 	Atomics.store(interruptBuffer, 0, INTERRUPT_BUFFER_VALUES.continue);
 	Atomics.store(controlBuffer, 0, CONTROL_BUFFER_VALUES.waitingForData);
@@ -430,12 +466,13 @@ function stopExecution(setState: SetState): void {
 function resetExecution(setState: SetState): void {
 	clearTimeout(resumeExecutionTimeoutIdentifier);
 
-	setState({
+	setState((state: ControlState) => ({
+		activePythonCode: state.annotatedActivePythonCode,
 		consoleContent: [],
 		executionHistory: [],
 		executionHistoryPosition: 0,
 		executionState: 'stopped'
-	});
+	}));
 }
 
 function stepBackward(setState: SetState): void {

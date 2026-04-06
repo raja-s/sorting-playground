@@ -63,8 +63,6 @@ async function executePythonCode(payload): Promise<void> {
 		}
 	});
 
-//	console.log(payload.instrumentedCode);
-
 	const isolatedNamespace = pyodide.globals.get("dict")();
 
 	try {

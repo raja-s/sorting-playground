@@ -1,20 +1,20 @@
 
-import { type ASTNodeUnion, NodeVisitor } from 'py-ast';
+import { NodeVisitor } from 'py-ast';
+
+import SourceCode from './SourceCode.ts';
 
 export default class BaseNodeVisitor extends NodeVisitor {
 
-	protected readonly sourceCode: string;
-	protected readonly sourceCodeLines: string[];
+	protected readonly sourceCode: SourceCode;
 
-	constructor(sourceCode: string) {
+	constructor(sourceCode: SourceCode) {
 		super();
 		this.sourceCode = sourceCode;
-		this.sourceCodeLines = sourceCode.split('\n');
 	}
 
 	getAbsolutePosition(lineNumber: number, columnOffset: number): number {
 		const lineStartAbsolutePosition: number =
-			this.sourceCodeLines.slice(0, lineNumber - 1)
+			this.sourceCode.lines.slice(0, lineNumber - 1)
 				.map(line => line.length + 1)
 				.reduce((sum, lineLength) => sum + lineLength, 0)
 

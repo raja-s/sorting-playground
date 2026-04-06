@@ -10,13 +10,15 @@ import {
 	iterChildNodes
 } from 'py-ast';
 
+import SourceCode from './SourceCode.ts';
+
 import BaseNodeVisitor from './BaseNodeVisitor.ts';
 
-import { countOccurrences } from './common.ts';
+import { type TextCoordinates, countOccurrences } from './common.ts';
 
 export default class NodeEndsSetterVisitor extends BaseNodeVisitor {
 
-	constructor(sourceCode: string) {
+	constructor(sourceCode: SourceCode) {
 		super(sourceCode);
 	}
 
@@ -60,27 +62,23 @@ export default class NodeEndsSetterVisitor extends BaseNodeVisitor {
 	visitAttribute(attributeNode: Attribute): void {
 		this.genericVisit(attributeNode);
 
-		const { endLineNumber, endColumnOffset } =
-			this.getEndsForClosingSymbol(attributeNode.value, attributeNode.attr);
+		const endCoordinates: TextCoordinates =
+			this.getEndsForClosingSymbol(attributeNode.attr, attributeNode.value);
 
-		attributeNode.end_lineno = endLineNumber;
-		attributeNode.end_col_offset = endColumnOffset;
+		attributeNode.end_lineno = endCoordinates.lineNumber;
+		attributeNode.end_col_offset = endCoordinates.columnOffset;
 	}
 
 	visitList(listNode: ASTNodeUnion): void {
 		this.genericVisit(listNode);
 
-		const { endLineNumber, endColumnOffset } =
+		const endCoordinates: TextCoordinates =
 			listNode.elts.length === 0 ?
-				this.getEndsForClosingSymbolFromPosition(
-					listNode.lineno,
-					listNode.col_offset,
-					']'
-				) :
-				this.getEndsForClosingSymbol(listNode.elts[listNode.elts.length - 1], ']');
+				this.getEndsForClosingSymbolFromPosition(']', listNode.lineno, listNode.col_offset) :
+				this.getEndsForClosingSymbol(']', listNode.elts[listNode.elts.length - 1]);
 
-		listNode.end_lineno = endLineNumber;
-		listNode.end_col_offset = endColumnOffset;
+		listNode.end_lineno = endCoordinates.lineNumber;
+		listNode.end_col_offset = endCoordinates.columnOffset;
 	}
 
 	visitConstant(constantNode: Constant): void {
@@ -103,7 +101,7 @@ export default class NodeEndsSetterVisitor extends BaseNodeVisitor {
 				constantNode.end_col_offset =
 					lineBreakCount === 0 ?
 						constantNode.col_offset + constantNode.value.length + constantNode.kind.length * 2 :
-						this.sourceCodeLines[constantNode.end_lineno - 1].indexOf(constantNode.kind) +
+						this.sourceCode.lines[constantNode.end_lineno - 1].indexOf(constantNode.kind) +
 							constantNode.kind.length;
 				break;
 			}
@@ -121,29 +119,63 @@ export default class NodeEndsSetterVisitor extends BaseNodeVisitor {
 			return;
 		}
 
-		const { endLineNumber, endColumnOffset } =
+		const endCoordinates: TextCoordinates =
 			tupleNode.elts.length === 0 ?
-				this.getEndsForClosingSymbolFromPosition(tupleNode.lineno, tupleNode.col_offset, ')') :
-				this.getEndsForClosingSymbol(tupleNode.elts[tupleNode.elts.length - 1], ')');
+				this.getEndsForClosingSymbolFromPosition(')', tupleNode.lineno, tupleNode.col_offset) :
+				this.getEndsForClosingSymbol(')', tupleNode.elts[tupleNode.elts.length - 1]);
 
-		tupleNode.end_lineno = endLineNumber;
-		tupleNode.end_col_offset = endColumnOffset;
+		tupleNode.end_lineno = endCoordinates.lineNumber;
+		tupleNode.end_col_offset = endCoordinates.columnOffset;
 	}
 
 	visitCall(callNode: Call): void {
 		this.genericVisit(callNode);
 
-		const { endLineNumber, endColumnOffset } =
+		const endCoordinates: TextCoordinates =
 			callNode.args.length === 0 ?
 				this.getEndsForClosingSymbolFromPosition(
+					')',
 					callNode.func.end_lineno,
-					callNode.func.end_col_offset,
-					')'
+					callNode.func.end_col_offset
 				) :
-				this.getEndsForClosingSymbol(callNode.args[callNode.args.length - 1], ')');
+				this.getEndsForClosingSymbol(')', callNode.args[callNode.args.length - 1]);
 
-		callNode.end_lineno = endLineNumber;
-		callNode.end_col_offset = endColumnOffset;
+		callNode.end_lineno = endCoordinates.lineNumber;
+		callNode.end_col_offset = endCoordinates.columnOffset;
+	}
+
+
+	visitFunctionDef(defNode: ASTNodeUnion): void {
+		const argumentsStartCoordinates: TextCoordinates =
+			this.findSymbolFromPosition('(', defNode.lineno, defNode.col_offset);
+
+		defNode.args.lineno = argumentsStartCoordinates.lineNumber;
+		defNode.args.col_offset = argumentsStartCoordinates.columnOffset;
+
+		this.genericVisit(defNode);
+
+		const endCoordinates: TextCoordinates =
+			this.getEndsForClosingSymbol(':', defNode.args);
+
+		defNode.end_lineno = endCoordinates.lineNumber;
+		defNode.end_col_offset = endCoordinates.columnOffset;
+	}
+
+	visitArguments(argumentsNode: ASTNodeUnion): void {
+		this.genericVisit(argumentsNode);
+
+		const endCoordinates: TextCoordinates =
+			argumentsNode.args.length === 0 ?
+				this.getEndsForClosingSymbolFromPosition(')', argumentsNode.lineno, argumentsNode.col_offset) :
+				this.getEndsForClosingSymbol(')', argumentsNode.args[argumentsNode.args.length - 1]);
+
+		argumentsNode.end_lineno = endCoordinates.lineNumber;
+		argumentsNode.end_col_offset = endCoordinates.columnOffset;
+	}
+
+	visitArg(argNode: ASTNodeUnion): void {
+		argNode.end_lineno = argNode.lineno;
+		argNode.end_col_offset = argNode.col_offset + argNode.arg.length;
 	}
 
 	/**
@@ -152,11 +184,11 @@ export default class NodeEndsSetterVisitor extends BaseNodeVisitor {
 	visitIf(ifNode: ASTNodeUnion): void {
 		this.genericVisit(ifNode);
 
-		const { endLineNumber, endColumnOffset } =
-			this.getEndsForClosingSymbol(ifNode.test, ':');
+		const endCoordinates: TextCoordinates =
+			this.getEndsForClosingSymbol(':', ifNode.test);
 
-		ifNode.end_lineno = endLineNumber;
-		ifNode.end_col_offset = endColumnOffset;
+		ifNode.end_lineno = endCoordinates.lineNumber;
+		ifNode.end_col_offset = endCoordinates.columnOffset;
 	}
 
 	visitCompare(compareNode: ASTNodeUnion): void {
@@ -168,65 +200,79 @@ export default class NodeEndsSetterVisitor extends BaseNodeVisitor {
 	visitSubscript(subscriptNode: ASTNodeUnion): void {
 		this.genericVisit(subscriptNode);
 
-		const { endLineNumber, endColumnOffset } =
-			this.getEndsForClosingSymbol(subscriptNode.slice, ']');
+		const endCoordinates: TextCoordinates =
+			this.getEndsForClosingSymbol(']', subscriptNode.slice);
 
-		subscriptNode.end_lineno = endLineNumber;
-		subscriptNode.end_col_offset = endColumnOffset;
+		subscriptNode.end_lineno = endCoordinates.lineNumber;
+		subscriptNode.end_col_offset = endCoordinates.columnOffset;
 	}
 
 	visitFor(forNode: ASTNodeUnion): void {
 		this.genericVisit(forNode);
 
-		const { endLineNumber, endColumnOffset } =
-			this.getEndsForClosingSymbol(forNode.iter, ':');
+		const endCoordinates: TextCoordinates =
+			this.getEndsForClosingSymbol(':', forNode.iter);
 
-		forNode.end_lineno = endLineNumber;
-		forNode.end_col_offset = endColumnOffset;
+		forNode.end_lineno = endCoordinates.lineNumber;
+		forNode.end_col_offset = endCoordinates.columnOffset;
 	}
 
 	visitWhile(whileNode: ASTNodeUnion): void {
 		this.genericVisit(whileNode);
 
-		const { endLineNumber, endColumnOffset } =
-			this.getEndsForClosingSymbol(whileNode.test, ':');
+		const endCoordinates: TextCoordinates =
+			this.getEndsForClosingSymbol(':', whileNode.test);
 
-		whileNode.end_lineno = endLineNumber;
-		whileNode.end_col_offset = endColumnOffset;
+		whileNode.end_lineno = endCoordinates.lineNumber;
+		whileNode.end_col_offset = endCoordinates.columnOffset;
 	}
 
 	getEndsForClosingSymbol(
-		lastNestedElement: ASTNodeUnion,
-		closingSymbol: string
-	): { endLineNumber: number, endColumnOffset: number } {
+		closingSymbol: string,
+		lastNestedElement: ASTNodeUnion
+	): TextCoordinates {
 		return this.getEndsForClosingSymbolFromPosition(
+			closingSymbol,
 			lastNestedElement.end_lineno,
-			lastNestedElement.end_col_offset,
-			closingSymbol
+			lastNestedElement.end_col_offset
 		);
 	}
 
 	getEndsForClosingSymbolFromPosition(
+		closingSymbol: string,
 		lineNumber: number,
-		columnOffset: number,
-		closingSymbol: string
-	): { endLineNumber: number, endColumnOffset: number } {
+		columnOffset: number
+	): TextCoordinates {
+		const coordinates: TextCoordinates =
+			this.findSymbolFromPosition(closingSymbol, lineNumber, columnOffset);
+
+		return {
+			lineNumber: coordinates.lineNumber,
+			columnOffset: coordinates.columnOffset + closingSymbol.length
+		};
+	}
+
+	findSymbolFromPosition(
+		searchSymbol: string,
+		lineNumber: number,
+		columnOffset: number
+	): TextCoordinates {
 		const absolutePosition: number = this.getAbsolutePosition(lineNumber, columnOffset);
 
-		const closingSymbolIndex: number =
-			this.sourceCode.indexOf(closingSymbol, absolutePosition);
+		const symbolIndex: number =
+			this.sourceCode.content.indexOf(searchSymbol, absolutePosition);
 
 		const sourceCodeSlice: string =
-			this.sourceCode.slice(absolutePosition, closingSymbolIndex);
+			this.sourceCode.content.slice(absolutePosition, symbolIndex);
 		const lineBreakCount: number = countOccurrences('\n', sourceCodeSlice);
 
-		const endLineNumber: number = lineNumber + lineBreakCount;
-		let endColumnOffset: number =
-			lineBreakCount === 0 ? columnOffset + sourceCodeSlice.length :
-				this.sourceCodeLines[endLineNumber - 1].indexOf(closingSymbol);
-		endColumnOffset += closingSymbol.length;
+		const symbolLineNumber: number = lineNumber + lineBreakCount;
 
-		return { endLineNumber, endColumnOffset };
+		return {
+			lineNumber: symbolLineNumber,
+			columnOffset: lineBreakCount === 0 ? columnOffset + sourceCodeSlice.length :
+				this.sourceCode.lines[symbolLineNumber - 1].indexOf(searchSymbol)
+		};
 	}
 
 }

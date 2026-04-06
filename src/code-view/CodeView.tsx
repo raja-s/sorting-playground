@@ -13,10 +13,9 @@ export function CodeView() {
 	const translate = useTranslation().t;
 
 	const startingListVariableName: string = translate('code.starting_list_variable_name');
-	const startingCode: string = `${translate('code.list_variable_comment')}
-${startingListVariableName} = [${startingList.join(', ')}]
+	const startingCode: string = `${startingListVariableName} = [${startingList.join(', ')}] #l#
 
-n = len(${startingListVariableName})
+n = len(${startingListVariableName}) #t#
 
 ${translate('code.to_do_comment')}
 `;
