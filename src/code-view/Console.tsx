@@ -1,14 +1,14 @@
 
 import Box from '@mui/material/Box';
 
-import { useControlStore } from '../state/useControlStore.ts';
+import { useApplicationStore } from '../state/useApplicationStore.ts';
 import { type CodeAnalysisResult } from '../pyodide/code-analysis/codeAnalysis.ts';
 
 import Typography from '@mui/material/Typography';
 
 export function Console() {
-	const consoleContent = useControlStore(state => state.consoleContent);
-	const pythonCodeAnalysisResult = useControlStore(state => state.pythonCodeAnalysisResult);
+	const consoleContent = useApplicationStore(state => state.consoleContent);
+	const pythonCodeAnalysisResult = useApplicationStore(state => state.pythonCodeAnalysisResult);
 
 	return (
 		<Box>

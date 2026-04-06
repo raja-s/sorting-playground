@@ -7,11 +7,10 @@ import { shallow } from 'zustand/shallow';
 import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
 
-import {
-	type ExecutionCheckpoint,
-	type SortingElement,
-	useControlStore
-} from '../state/useControlStore.ts';
+import { useApplicationStore } from '../state/useApplicationStore.ts';
+import { type SortingList } from '../state/SortingList.ts';
+import { type ExecutionCheckpoint, type ExecutionHistory } from '../state/ExecutionCheckpoint.ts';
+
 import { type CodeAnalysisResult, type SortingListComparison } from '../pyodide/code-analysis/codeAnalysis.ts';
 
 import { Bar } from './Bar.tsx';
@@ -32,9 +31,9 @@ type ActiveSortingListComparison = {
 const STABILIZATION_THRESHOLD: number = 10e-4;
 
 export function BarsSortingScene() {
-	const sortingList: SortingElement[] = useControlStore(state => state.sortingList);
-	const barsColored: boolean = useControlStore(state => state.barsColored);
-	const focusComparedBars: boolean = useControlStore(state => state.focusComparedBars);
+	const sortingList: SortingList = useApplicationStore(state => state.sortingList);
+	const barsColored: boolean = useApplicationStore(state => state.barsColored);
+	const focusComparedBars: boolean = useApplicationStore(state => state.focusComparedBars);
 
 	const [activeComparison, setActiveComparison]:
 		[ActiveSortingListComparison, React.Dispatch<React.SetStateAction<ActiveSortingListComparison>>] =
@@ -54,7 +53,7 @@ export function BarsSortingScene() {
 	}, []);
 
 	useEffect(() => {
-		const unsubscribe = useControlStore.subscribe(
+		const unsubscribe = useApplicationStore.subscribe(
 			state => [
 				state.pythonCodeAnalysisResult,
 				state.executionHistory,
@@ -95,7 +94,7 @@ export function BarsSortingScene() {
 	}, []);
 
 	useEffect(() => {
-		const unsubscribe = useControlStore.subscribe(
+		const unsubscribe = useApplicationStore.subscribe(
 			state => [
 				state.sortingList,
 				state.executionState
@@ -171,7 +170,7 @@ export function BarsSortingScene() {
 	)
 }
 
-function determineBounds(sortingList: SortingElement[]) {
+function determineBounds(sortingList: SortingList) {
 	if (sortingList.length === 0) {
 		return { minimum : 0 , maximum : 0 };
 	}
@@ -193,7 +192,7 @@ function determineBounds(sortingList: SortingElement[]) {
 
 function checkAndSetActiveComparison(
 	pythonCodeAnalysisResult: CodeAnalysisResult,
-	executionHistory: ExecutionCheckpoint[],
+	executionHistory: ExecutionHistory,
 	executionHistoryPosition: number,
 	setActiveComparison: React.Dispatch<React.SetStateAction<ActiveSortingListComparison>>
 ): void {

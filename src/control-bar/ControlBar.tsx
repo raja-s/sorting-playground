@@ -32,42 +32,43 @@ import { useTranslation } from 'react-i18next';
 
 import { fileOpen, fileSave } from 'browser-fs-access';
 
-import { type ExecutionState, useControlStore } from '../state/useControlStore.ts';
+import { useApplicationStore } from '../state/useApplicationStore.ts';
+import { type ExecutionState } from '../state/ApplicationState.ts';
 
 import { ControlIconButton } from './ControlIconButton.tsx';
 
 export function ControlBar() {
 	const translate = useTranslation().t;
 
-	const pythonExecutionWorkerReady = useControlStore(state => state.pythonExecutionWorkerReady);
-	const readyToExecuteCode = useControlStore(state => state.readyToExecuteCode);
+	const pythonExecutionWorkerReady = useApplicationStore(state => state.pythonExecutionWorkerReady);
+	const readyToExecuteCode = useApplicationStore(state => state.readyToExecuteCode);
 
-	const activePythonCode = useControlStore(state => state.activePythonCode);
-	const setActivePythonCode = useControlStore(state => state.setActivePythonCode);
+	const activePythonCode = useApplicationStore(state => state.activePythonCode);
+	const setActivePythonCode = useApplicationStore(state => state.setActivePythonCode);
 
-	const bumpEditorReloadCodeTriggerValue = useControlStore(state => state.bumpEditorReloadCodeTriggerValue);
+	const bumpEditorReloadCodeTriggerValue = useApplicationStore(state => state.bumpEditorReloadCodeTriggerValue);
 
-	const executionHistory = useControlStore(state => state.executionHistory);
-	const executionHistoryPosition: number = useControlStore(state => state.executionHistoryPosition);
+	const executionHistory = useApplicationStore(state => state.executionHistory);
+	const executionHistoryPosition: number = useApplicationStore(state => state.executionHistoryPosition);
 
-	const executionSpeed: number = useControlStore(state => state.executionSpeed);
-	const setExecutionSpeed = useControlStore(state => state.setExecutionSpeed);
+	const executionSpeed: number = useApplicationStore(state => state.executionSpeed);
+	const setExecutionSpeed = useApplicationStore(state => state.setExecutionSpeed);
 
-	const executionState: ExecutionState = useControlStore(state => state.executionState);
-	const runExecution = useControlStore(state => state.runExecution);
-	const pauseExecution = useControlStore(state => state.pauseExecution);
-	const stopExecution = useControlStore(state => state.stopExecution);
-	const resetExecution = useControlStore(state => state.resetExecution);
+	const executionState: ExecutionState = useApplicationStore(state => state.executionState);
+	const runExecution = useApplicationStore(state => state.runExecution);
+	const pauseExecution = useApplicationStore(state => state.pauseExecution);
+	const stopExecution = useApplicationStore(state => state.stopExecution);
+	const resetExecution = useApplicationStore(state => state.resetExecution);
 
-	const stepBackward = useControlStore(state => state.stepBackward);
-	const stepForward = useControlStore(state => state.stepForward);
+	const stepBackward = useApplicationStore(state => state.stepBackward);
+	const stepForward = useApplicationStore(state => state.stepForward);
 
-	const barsColored: boolean = useControlStore(state => state.barsColored);
-	const toggleBarsColored = useControlStore(state => state.toggleBarsColored);
-	const focusComparedBars: boolean = useControlStore(state => state.focusComparedBars);
-	const toggleFocusComparedBars = useControlStore(state => state.toggleFocusComparedBars);
+	const barsColored: boolean = useApplicationStore(state => state.barsColored);
+	const toggleBarsColored = useApplicationStore(state => state.toggleBarsColored);
+	const focusComparedBars: boolean = useApplicationStore(state => state.focusComparedBars);
+	const toggleFocusComparedBars = useApplicationStore(state => state.toggleFocusComparedBars);
 
-	const generateShareLink = useControlStore(state => state.generateShareLink);
+	const generateShareLink = useApplicationStore(state => state.generateShareLink);
 
 	const [ shareLinkCopiedSnackbarOpen, setShareLinkCopiedSnackbarOpen ] = useState(false);
 

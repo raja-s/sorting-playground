@@ -10,7 +10,11 @@ import {
 } from '../pyodide/pyodideExecutionWorkerApi.ts';
 
 import SimulationAnnotation from '../pyodide/code-analysis/SimulationAnnotation.ts';
-import { type CodeAnalysisResult, analyzePythonCode } from '../pyodide/code-analysis/codeAnalysis.ts';
+import { analyzePythonCode } from '../pyodide/code-analysis/codeAnalysis.ts';
+
+import type ApplicationState from './ApplicationState.ts';
+import { type ExecutionState } from './ApplicationState.ts';
+import { type ExecutionCheckpoint } from './ExecutionCheckpoint.ts';
 
 export type ConsoleContentType = 'standard_output' | 'error';
 
@@ -19,76 +23,12 @@ export type ConsoleContent = {
 	type: ConsoleContentType
 };
 
-export type SortingElement = {
-	identifier: number,
-	value: any
-};
-
-export type ExecutionCheckpoint = {
-	startLineNumber: number,
-	endLineNumber: number,
-	scopeLocals: object,
-	stackLevel: number,
-	frameIdentifier: string,
-	parentFrameIdentifier: string,
-	parentCheckpoint: ExecutionCheckpoint | null,
-	sortingList: SortingElement[]
-};
-
-export type ExecutionState = 'stopped' | 'paused' | 'running' | 'finished';
-
-export interface ControlState {
-	sortingListVariableName: string;
-	sortingList: SortingElement[];
-	setSortingListData: (name: string, list: number[]) => void;
-
-	pythonExecutionWorkerReady: boolean;
-	pythonExecutionWorker: Worker;
-
-	readyToExecuteCode: boolean;
-
-	activePythonCode: string;
-	annotatedActivePythonCode: string;
-	setActivePythonCode: (code: string) => void;
-
-	editorReloadCodeTriggerValue: number;
-	bumpEditorReloadCodeTriggerValue: () => void;
-
-	consoleContent: ConsoleContent[];
-	appendToConsole: (content: ConsoleContent) => void;
-
-	pythonCodeAnalysisResult: CodeAnalysisResult;
-
-	executionHistory: ExecutionCheckpoint[];
-	executionHistoryPosition: number;
-
-	executionSpeed: number;
-	setExecutionSpeed: (speed: number) => void;
-
-	executionState: ExecutionState;
-	runExecution: () => void;
-	pauseExecution: () => void;
-	stopExecution: () => void;
-	resetExecution: () => void;
-
-	stepBackward: () => void;
-	stepForward: () => void;
-
-	barsColored: boolean;
-	toggleBarsColored: () => void;
-
-	focusComparedBars: boolean;
-	toggleFocusComparedBars: () => void;
-
-	generateShareLink: () => string;
-}
-
-type GetState = () => ControlState;
+type GetState = () => ApplicationState;
 
 type SetState = (
 	nextStateOrUpdater:
-		Partial<ControlState> |
-		((state: ControlState) => Partial<ControlState>)
+		Partial<ApplicationState> |
+		((state: ApplicationState) => Partial<ApplicationState>)
 ) => void;
 
 const controlBuffer: Int32Array = new Int32Array(new SharedArrayBuffer(4));
@@ -97,8 +37,8 @@ const interruptBuffer: Uint8Array = new Uint8Array(new SharedArrayBuffer(1));
 
 let resumeExecutionTimeoutIdentifier: number = -1;
 
-export const useControlStore =
-	create<ControlState>()(
+export const useApplicationStore =
+	create<ApplicationState>()(
 		subscribeWithSelector(
 			persist(
 				(setState: SetState, getState: GetState) => ({
@@ -127,14 +67,14 @@ export const useControlStore =
 
 					editorReloadCodeTriggerValue: 0,
 					bumpEditorReloadCodeTriggerValue: () => {
-						setState((state: ControlState) => ({
+						setState((state: ApplicationState) => ({
 							editorReloadCodeTriggerValue: state.editorReloadCodeTriggerValue + 1
 						}));
 					},
 
 					consoleContent: [],
 					appendToConsole: (content: ConsoleContent) => {
-						setState((state: ControlState) => ({
+						setState((state: ApplicationState) => ({
 							consoleContent: state.consoleContent.concat([ content ])
 						}));
 					},
@@ -172,18 +112,18 @@ export const useControlStore =
 
 					barsColored: true,
 					toggleBarsColored: () => {
-						setState((state: ControlState) => ({ barsColored: !state.barsColored }));
+						setState((state: ApplicationState) => ({ barsColored: !state.barsColored }));
 					},
 
 					focusComparedBars: true,
 					toggleFocusComparedBars: () => {
-						setState((state: ControlState) => ({ focusComparedBars: !state.focusComparedBars }));
+						setState((state: ApplicationState) => ({ focusComparedBars: !state.focusComparedBars }));
 					},
 
 					generateShareLink: () => {
-						const state: ControlState = getState();
+						const state: ApplicationState = getState();
 
-						const dataToCompress: Partial<ControlState> = {
+						const dataToCompress: Partial<ApplicationState> = {
 							sortingListVariableName: state.sortingListVariableName,
 							sortingList:             state.sortingList,
 							activePythonCode:        state.activePythonCode,
@@ -204,7 +144,7 @@ export const useControlStore =
 					name: URL_FRAGMENT_STATE_VARIABLE_NAME,
 					storage: createJSONStorage(() => urlStorage),
 
-					partialize: (state: ControlState): Partial<ControlState> => ({
+					partialize: (state: ApplicationState): Partial<ApplicationState> => ({
 						sortingListVariableName: state.sortingListVariableName,
 						sortingList:             state.sortingList,
 						activePythonCode:        state.activePythonCode,
@@ -217,20 +157,20 @@ export const useControlStore =
 		)
 	);
 
-if (useControlStore.persist.hasHydrated()) {
-	handleHydrationFromUrlComplete(useControlStore.getState());
+if (useApplicationStore.persist.hasHydrated()) {
+	handleHydrationFromUrlComplete(useApplicationStore.getState());
 } else {
-	useControlStore.persist.onFinishHydration((state: ControlState) => {
+	useApplicationStore.persist.onFinishHydration((state: ApplicationState) => {
 		handleHydrationFromUrlComplete(state);
 	});
 }
 
-function handleHydrationFromUrlComplete(state: ControlState): void {
+function handleHydrationFromUrlComplete(state: ApplicationState): void {
 	state.bumpEditorReloadCodeTriggerValue();
 }
 
 function reassessReadyToExecuteCode(setState: SetState): void {
-	setState((state: ControlState) => ({
+	setState((state: ApplicationState) => ({
 		readyToExecuteCode:
 			state.sortingListVariableName !== '' &&
 			state.pythonExecutionWorkerReady
@@ -324,7 +264,7 @@ function handleExecutionCheckpoint(
 		return;
 	}
 
-	setState((state: ControlState) => {
+	setState((state: ApplicationState) => {
 		if (state.executionHistory.length === 0) {
 			checkpoint.stackLevel = 0;
 			checkpoint.parentCheckpoint = null;
@@ -395,7 +335,7 @@ function runExecution(getState: GetState, setState: SetState): void {
 
 function startExecution(getState: GetState, setState: SetState): void {
 	try {
-		setState((state: ControlState) => ({
+		setState((state: ApplicationState) => ({
 			annotatedActivePythonCode: state.activePythonCode,
 			pythonCodeAnalysisResult: analyzePythonCode(
 				state.activePythonCode,
@@ -421,7 +361,7 @@ function startExecution(getState: GetState, setState: SetState): void {
 	Atomics.store(interruptBuffer, 0, INTERRUPT_BUFFER_VALUES.continue);
 	Atomics.store(controlBuffer, 0, CONTROL_BUFFER_VALUES.waitingForData);
 
-	const state: ControlState = getState();
+	const state: ApplicationState = getState();
 
 	state.pythonExecutionWorker.postMessage({
 		type: MESSAGE_TYPES.executePythonCode,
@@ -443,7 +383,7 @@ function resumeExecution(getState: GetState, setState: SetState): void {
 		Atomics.store(controlBuffer, 0, CONTROL_BUFFER_VALUES.dataAvailable);
 		Atomics.notify(controlBuffer, 0);
 	} else {
-		setState((state: ControlState) => ({
+		setState((state: ApplicationState) => ({
 			executionHistoryPosition: state.executionHistoryPosition + 1
 		}));
 
@@ -470,7 +410,7 @@ function stopExecution(setState: SetState): void {
 function resetExecution(setState: SetState): void {
 	clearTimeout(resumeExecutionTimeoutIdentifier);
 
-	setState((state: ControlState) => ({
+	setState((state: ApplicationState) => ({
 		activePythonCode: state.annotatedActivePythonCode,
 		consoleContent: [],
 		executionHistory: [],
@@ -480,7 +420,7 @@ function resetExecution(setState: SetState): void {
 }
 
 function stepBackward(setState: SetState): void {
-	setState((state: ControlState) => ({
+	setState((state: ApplicationState) => ({
 		executionHistoryPosition: state.executionHistoryPosition - 1
 	}));
 }
@@ -488,7 +428,7 @@ function stepBackward(setState: SetState): void {
 function stepForward(getState: GetState, setState: SetState): void {
 	const state: ExecutionState = getState().executionState;
 
-	setState((state: ControlState) => ({
+	setState((state: ApplicationState) => ({
 		executionState: state.executionState === 'stopped' ?
 			'paused' : state.executionState
 	}));

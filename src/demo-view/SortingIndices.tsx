@@ -2,26 +2,26 @@
 import * as THREE from 'three';
 import { Text } from '@react-three/drei';
 
-import {
-	type ExecutionCheckpoint,
-	type ExecutionState,
-	useControlStore
-} from '../state/useControlStore.ts';
+import { useApplicationStore } from '../state/useApplicationStore.ts';
+import { type ExecutionState } from '../state/ApplicationState.ts';
+import { type ExecutionCheckpoint, type ExecutionHistory } from '../state/ExecutionCheckpoint.ts';
+
 import { type CodeAnalysisResult, type Variable } from '../pyodide/code-analysis/codeAnalysis.ts';
 
 import { JETBRAINS_MONO_FONT_PATH } from './fonts.ts';
 
 export function SortingIndices() {
-	const pythonCodeAnalysisResult: CodeAnalysisResult = useControlStore(state => state.pythonCodeAnalysisResult);
-	const executionHistory: ExecutionCheckpoint[] = useControlStore(state => state.executionHistory);
-	const executionHistoryPosition: number = useControlStore(state => state.executionHistoryPosition);
-	const executionState: ExecutionState = useControlStore(state => state.executionState);
+	const pythonCodeAnalysisResult: CodeAnalysisResult = useApplicationStore(state => state.pythonCodeAnalysisResult);
+	const executionHistory: ExecutionHistory = useApplicationStore(state => state.executionHistory);
+	const executionHistoryPosition: number = useApplicationStore(state => state.executionHistoryPosition);
+	const executionState: ExecutionState = useApplicationStore(state => state.executionState);
 
 	if (executionState === 'stopped' || executionHistory.length === 0) {
 		return null;
 	}
 
-	const executionCheckpoint = executionHistory[Math.max(executionHistoryPosition - 1, 0)];
+	const executionCheckpoint: ExecutionCheckpoint =
+		executionHistory[Math.max(executionHistoryPosition - 1, 0)];
 
 	if (executionCheckpoint.startLineNumber == null) {
 		return null;

@@ -20,11 +20,9 @@ import { python } from '@codemirror/lang-python';
 
 import ReactCodeEditor from '@uiw/react-codemirror';
 
-import {
-	type ExecutionCheckpoint,
-	type ExecutionState,
-	useControlStore
-} from '../state/useControlStore.ts';
+import { useApplicationStore } from '../state/useApplicationStore.ts';
+import { type ExecutionState } from '../state/ApplicationState.ts';
+import { type ExecutionCheckpoint, type ExecutionHistory } from '../state/ExecutionCheckpoint.ts';
 
 import {
 	type Variable,
@@ -191,15 +189,15 @@ export function CodeEditor(props: CodeEditorProps) {
 
 	const editorViewRef: RefObject<EditorView> = useRef(null as unknown as EditorView);
 
-	const setSortingListData = useControlStore(state => state.setSortingListData);
-	const activePythonCode = useControlStore(state => state.activePythonCode);
-	const setActivePythonCode = useControlStore(state => state.setActivePythonCode);
-	const editorReloadCodeTriggerValue = useControlStore(state => state.editorReloadCodeTriggerValue);
-	const bumpEditorReloadCodeTriggerValue = useControlStore(state => state.bumpEditorReloadCodeTriggerValue);
-	const pythonCodeAnalysisResult = useControlStore(state => state.pythonCodeAnalysisResult);
-	const executionHistory = useControlStore(state => state.executionHistory);
-	const executionHistoryPosition = useControlStore(state => state.executionHistoryPosition);
-	const executionState = useControlStore(state => state.executionState);
+	const setSortingListData = useApplicationStore(state => state.setSortingListData);
+	const activePythonCode = useApplicationStore(state => state.activePythonCode);
+	const setActivePythonCode = useApplicationStore(state => state.setActivePythonCode);
+	const editorReloadCodeTriggerValue = useApplicationStore(state => state.editorReloadCodeTriggerValue);
+	const bumpEditorReloadCodeTriggerValue = useApplicationStore(state => state.bumpEditorReloadCodeTriggerValue);
+	const pythonCodeAnalysisResult = useApplicationStore(state => state.pythonCodeAnalysisResult);
+	const executionHistory = useApplicationStore(state => state.executionHistory);
+	const executionHistoryPosition = useApplicationStore(state => state.executionHistoryPosition);
+	const executionState = useApplicationStore(state => state.executionState);
 
 	const [state, setState] = useState<State>({
 		sortingListVariableName: props.startingListVariableName,
@@ -357,7 +355,7 @@ function handleExecutionUpdate(
 	activePythonCode: string,
 	pythonCodeAnalysisResult: CodeAnalysisResult,
 	executionState: ExecutionState,
-	executionHistory: ExecutionCheckpoint[],
+	executionHistory: ExecutionHistory,
 	executionHistoryPosition: number
 ): void {
 	if (editorView == null) {
@@ -373,7 +371,7 @@ function handleExecutionUpdate(
 		return;
 	}
 
-	let executionCheckpoint: ExecutionCheckpoint =
+	const executionCheckpoint: ExecutionCheckpoint =
 		executionHistoryPosition === 0 ? executionHistory[0] :
 			executionHistory[executionHistoryPosition - 1];
 
