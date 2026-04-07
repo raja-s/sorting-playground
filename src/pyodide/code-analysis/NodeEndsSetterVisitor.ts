@@ -227,6 +227,15 @@ export default class NodeEndsSetterVisitor extends BaseNodeVisitor {
 		whileNode.end_col_offset = endCoordinates.columnOffset;
 	}
 
+	visitReturn(returnNode: ASTNodeUnion): void {
+		this.genericVisit(returnNode);
+
+		if (returnNode.value == null) {
+			returnNode.end_lineno = returnNode.lineno;
+			returnNode.end_col_offset = returnNode.col_offset + 6;
+		}
+	}
+
 	getEndsForClosingSymbol(
 		closingSymbol: string,
 		lastNestedElement: ASTNodeUnion
