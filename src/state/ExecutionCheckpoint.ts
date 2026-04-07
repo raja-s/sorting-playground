@@ -7,6 +7,7 @@ export default class ExecutionCheckpoint {
 	public readonly endLineNumber: number | null = null;
 	public readonly scopeLocals: object = {};
 	public readonly stackLevel: number = -1;
+	public readonly functionIdentifier: string = '';
 	public readonly frameIdentifier: string = '';
 	public readonly parentFrameIdentifier: string = '';
 	public readonly parentCheckpoint: ExecutionCheckpoint | null = null;
@@ -38,6 +39,27 @@ export default class ExecutionCheckpoint {
 		}
 	}
 
+	public squashExecutionStack(): ExecutionStack {
+		const seenFunctionIdentifiers: Set<string> = new Set();
+		const squashedStack: ExecutionStack = [];
+
+		// eslint-disable-next-line @typescript-eslint/no-this-alias
+		let frameCheckpoint: ExecutionCheckpoint | null = this;
+
+		while (frameCheckpoint != null) {
+			if (!seenFunctionIdentifiers.has(frameCheckpoint.functionIdentifier)) {
+				squashedStack.push(frameCheckpoint);
+				seenFunctionIdentifiers.add(frameCheckpoint.functionIdentifier);
+			}
+
+			frameCheckpoint = frameCheckpoint.parentCheckpoint;
+		}
+
+		return squashedStack.reverse();
+	}
+
 };
 
 export type ExecutionHistory = ExecutionCheckpoint[];
+
+export type ExecutionStack = ExecutionCheckpoint[];

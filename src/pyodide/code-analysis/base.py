@@ -3,6 +3,7 @@
 
 import inspect
 import json
+import types
 import uuid
 
 class TraceableListItemMeta(type):
@@ -65,7 +66,7 @@ class TraceableListItem(metaclass=TraceableListItemMeta):
     def __str__(self): return str(self._value)
     def __format__(self, spec): return format(self._value, spec)
 
-    def __to_json__(self):
+    def _to_json(self):
         return {
             'identifier': self._identifier,
             'value':      self._value
@@ -75,60 +76,68 @@ def _execution_checkpoint(
     sync_with_controller: bool,
     line_number_range: tuple[int, int] | None,
     scope_locals: dict,
-    stack: list[inspect.FrameInfo]
+    frame: types.FrameType
 ):
-    def get_frame_identifier(frame_info: inspect.FrameInfo):
-        if '_frame_identifier' not in frame_info.frame.f_locals:
-            frame_info.frame.f_locals['_frame_identifier'] = str(uuid.uuid4())
-        return frame_info.frame.f_locals['_frame_identifier']
+    try:
+        def get_frame_identifier(frame: types.FrameType):
+            if '_frame_identifier' not in frame.f_locals:
+                frame.f_locals['_frame_identifier'] = str(uuid.uuid4())
+            return frame.f_locals['_frame_identifier']
 
-    def json_default(input_object):
-        if isinstance(input_object, TraceableListItem):
-            return input_object.__to_json__()
-        return str(input_object)
+        def json_default(input_object):
+            if isinstance(input_object, TraceableListItem):
+                return input_object._value
+            return str(input_object)
 
-    scope_globals: dict = globals()
+        scope_globals: dict = globals()
 
-    if 'SORTING_LIST_VARIABLE_NAME' in scope_globals:
-        for i, item in enumerate(scope_globals['SORTING_LIST_VARIABLE_NAME']):
-            if not isinstance(item, TraceableListItem):
-                scope_globals['SORTING_LIST_VARIABLE_NAME'][i] = TraceableListItem(item)
+        if 'SORTING_LIST_VARIABLE_NAME' in scope_globals:
+            for i, item in enumerate(scope_globals['SORTING_LIST_VARIABLE_NAME']):
+                if not isinstance(item, TraceableListItem):
+                    scope_globals['SORTING_LIST_VARIABLE_NAME'][i] = TraceableListItem(item)
 
-    if not sync_with_controller:
-        return
+        if not sync_with_controller:
+            return
 
-    scope_locals_copy: dict = scope_locals.copy()
+        scope_locals_copy: dict = scope_locals.copy()
 
-    keys_to_clean_up: list[str] = [
-        '__builtins__',
-        'inspect',
-        'json',
-        'uuid',
-        'TraceableListItemMeta',
-        'TraceableListItem',
-        '_frame_identifier',
-        '_execution_checkpoint',
-        'SORTING_LIST_VARIABLE_NAME'
-    ]
-    for key in keys_to_clean_up:
-        if key in scope_locals_copy:
-            del scope_locals_copy[key]
+        keys_to_clean_up: list[str] = [
+            '__builtins__',
+            'inspect',
+            'json',
+            'types',
+            'uuid',
+            'TraceableListItemMeta',
+            'TraceableListItem',
+            '_frame_identifier',
+            '_execution_checkpoint',
+            'SORTING_LIST_VARIABLE_NAME'
+        ]
+        for key in keys_to_clean_up:
+            if key in scope_locals_copy:
+                del scope_locals_copy[key]
 
-    checkpoint: dict = {
-        'startLineNumber': None if line_number_range is None else line_number_range[0],
-        'endLineNumber': None if line_number_range is None else line_number_range[1],
-        'scopeLocals': scope_locals_copy,
-        'stackLevel': len(stack),
-        'frameIdentifier': get_frame_identifier(stack[0]),
-        'parentFrameIdentifier': get_frame_identifier(stack[1]),
-        'sortingList': None if 'SORTING_LIST_VARIABLE_NAME' not in scope_globals \
-            else scope_globals['SORTING_LIST_VARIABLE_NAME']
-    }
+        checkpoint: dict = {
+            'startLineNumber': None if line_number_range is None else line_number_range[0],
+            'endLineNumber': None if line_number_range is None else line_number_range[1],
+            'scopeLocals': scope_locals_copy,
+            'functionIdentifier': frame.f_code.co_qualname,
+            'frameIdentifier': get_frame_identifier(frame),
+            'parentFrameIdentifier': get_frame_identifier(frame.f_back),
+            'sortingList': None
+        }
 
-    with open('/execution-control/checkpoint.json', 'w') as checkpoint_file:
-        json.dump(checkpoint, checkpoint_file, indent='\t', default=json_default)
+        if 'SORTING_LIST_VARIABLE_NAME' in scope_globals:
+            checkpoint['sortingList'] = [
+                item._to_json() for item in scope_globals['SORTING_LIST_VARIABLE_NAME']
+            ]
 
-    input()
+        with open('/execution-control/checkpoint.json', 'w') as checkpoint_file:
+            json.dump(checkpoint, checkpoint_file, indent='\t', default=json_default)
+
+        input()
+    finally:
+        del frame
 
 try:
     ##### User Code #####

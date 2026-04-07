@@ -372,37 +372,37 @@ function handleExecutionUpdate(
 	}
 
 	const executionCheckpoint: ExecutionCheckpoint =
-		executionHistoryPosition === 0 ? executionHistory[0] :
-			executionHistory[executionHistoryPosition - 1];
+		executionHistory[Math.max(executionHistoryPosition - 1, 0)];
 
 	const executionAnnotationsChanges = getExecutionAnnotationsChanges(
 		editorView,
 		activePythonCode,
 		pythonCodeAnalysisResult,
-		executionCheckpoint
+		executionCheckpoint,
+		executionHistory,
+		executionHistoryPosition
 	);
+
 	const transaction = editorView.state.update({ changes: executionAnnotationsChanges });
 
 	let effectPosition;
 	let effect;
 
-	if (executionHistoryPosition === 0) {
+	if (executionCheckpoint.startLineNumber == null) {
+		effectPosition = transaction.state.doc.line(editorView.state.doc.lines).from;
+		effect = setExecutionEndLine;
+	} else if (executionHistoryPosition === 0) {
 		effectPosition = {
 			from: transaction.state.doc.line(executionCheckpoint.startLineNumber).from,
 			to: transaction.state.doc.line(executionCheckpoint.endLineNumber).to
 		};
 		effect = setExecutionStartLine;
 	} else {
-		if (executionCheckpoint.startLineNumber == null) {
-			effectPosition = transaction.state.doc.line(editorView.state.doc.lines).from;
-			effect = setExecutionEndLine;
-		} else {
-			effectPosition = {
-				from: transaction.state.doc.line(executionCheckpoint.startLineNumber).from,
-				to: transaction.state.doc.line(executionCheckpoint.endLineNumber).to
-			};
-			effect = setExecutingLine;
-		}
+		effectPosition = {
+			from: transaction.state.doc.line(executionCheckpoint.startLineNumber).from,
+			to: transaction.state.doc.line(executionCheckpoint.endLineNumber).to
+		};
+		effect = setExecutingLine;
 	}
 
 	editorView.dispatch({
@@ -415,7 +415,9 @@ function getExecutionAnnotationsChanges(
 	editorView: EditorView,
 	activePythonCode: string,
 	pythonCodeAnalysisResult: CodeAnalysisResult,
-	executionCheckpoint: ExecutionCheckpoint
+	executionCheckpoint: ExecutionCheckpoint,
+	executionHistory: ExecutionHistory,
+	executionHistoryPosition: number
 ): ChangeSpec {
 	const resetChange = editorView.state.changes({
 		from: 0,
@@ -425,19 +427,26 @@ function getExecutionAnnotationsChanges(
 
 	const cleanState = EditorState.create({ doc: activePythonCode });
 
+	let effectiveCheckpoint: ExecutionCheckpoint = executionCheckpoint;
+
 	if (executionCheckpoint.startLineNumber == null) {
-		return resetChange;
+		if (executionHistoryPosition < 2) {
+			return resetChange;
+		} else {
+			effectiveCheckpoint = executionHistory[executionHistoryPosition - 2];
+		}
 	}
 
 	const annotationChanges =
 		cleanState.changes(
-			pythonCodeAnalysisResult.trackedVariableMap[executionCheckpoint.startLineNumber]
-				.map((trackedVariable: Variable) => ({
-					from: cleanState.doc.line(trackedVariable.definitionLineNumberRange.end).to,
-					insert: ` # ${trackedVariable.name} = ${
-						executionCheckpoint.scopeLocals[trackedVariable.name]}`
-							.replaceAll('\n', '\\n')
-				}))
+			effectiveCheckpoint.squashExecutionStack().flatMap((checkpoint: ExecutionCheckpoint) =>
+				pythonCodeAnalysisResult.trackedVariableMap[checkpoint.startLineNumber]
+					.map((variable: Variable) => ({
+						from: cleanState.doc.line(variable.definitionLineNumberRange.end).to,
+						insert: ` # ${variable.name} = ${
+							checkpoint.scopeLocals[variable.name]}`.replaceAll('\n', '\\n')
+					}))
+			)
 		);
 
 	return resetChange.compose(annotationChanges);

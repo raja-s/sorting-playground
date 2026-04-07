@@ -97,7 +97,7 @@ export function instrumentCode(
 		instrumentedCode += '\n';
 	}
 
-	instrumentedCode += '    _execution_checkpoint(True, None, locals(), inspect.stack())\n'
+	instrumentedCode += '    _execution_checkpoint(True, None, locals(), inspect.currentframe())\n'
 
 	instrumentedCode += basePythonCodeParts[1].trimStart();
 
@@ -109,7 +109,7 @@ function createExecutionCheckpointCall(
 ): string {
 	return `_execution_checkpoint(${toPythonBoolean(instruction.syncWithController)
 		}, (${instruction.lineNumberRange.start}, ${instruction.lineNumberRange.end
-		}), locals(), inspect.stack())`;
+		}), locals(), inspect.currentframe())`;
 }
 
 function toPythonBoolean(value: boolean): string {

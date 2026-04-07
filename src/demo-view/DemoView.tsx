@@ -9,7 +9,7 @@ import { Text, useFont } from '@react-three/drei';
 
 import { BarsSortingScene } from './BarsSortingScene.tsx';
 import { SmoothCamera } from './SmoothCamera.tsx';
-import { SortingIndices } from './SortingIndices.tsx';
+import SortingIndices from './SortingIndices.tsx';
 
 import { JETBRAINS_MONO_FONT_PATH } from './fonts.ts';
 
