@@ -326,13 +326,14 @@ function startExecution(getState: GetState, setState: SetState): void {
 		}));
 	} catch (error) {
 		console.error(error);
-		setState({
+		setState((state: ApplicationState) => ({
+			annotatedActivePythonCode: state.activePythonCode,
 			consoleContent: [{
 				text: error.message,
 				type: 'error'
 			}],
 			executionState: 'finished'
-		});
+		}));
 		return;
 	}
 
