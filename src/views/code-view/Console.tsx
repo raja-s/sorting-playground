@@ -1,9 +1,8 @@
 
+import { useApplicationStore } from '../../state/useApplicationStore.ts';
+import { type CodeAnalysisResult } from '../../code-analysis/codeAnalysis.ts';
+
 import Box from '@mui/material/Box';
-
-import { useApplicationStore } from '../state/useApplicationStore.ts';
-import { type CodeAnalysisResult } from '../pyodide/code-analysis/codeAnalysis.ts';
-
 import Typography from '@mui/material/Typography';
 
 export default function Console() {

@@ -8,7 +8,7 @@ import theme from './theme.ts';
 
 import './i18n.ts';
 
-import App from './App.tsx';
+import App from './views/App.tsx';
 
 createRoot(document.getElementById('root')!).render(
 	<StrictMode>

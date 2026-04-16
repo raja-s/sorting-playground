@@ -12,14 +12,14 @@ import { python } from '@codemirror/lang-python';
 
 import CodeMirrorEditor from '@uiw/react-codemirror';
 
-import { useApplicationStore } from '../../state/useApplicationStore.ts';
-import { type ExecutionState } from '../../state/ApplicationState.ts';
-import ExecutionCheckpoint, { type ExecutionHistory } from '../../state/ExecutionCheckpoint.ts';
+import { useApplicationStore } from '../../../state/useApplicationStore.ts';
+import { type ExecutionState } from '../../../state/ApplicationState.ts';
+import ExecutionCheckpoint, { type ExecutionHistory } from '../../../state/ExecutionCheckpoint.ts';
 
 import {
 	type Variable,
 	type CodeAnalysisResult
-} from '../../pyodide/code-analysis/codeAnalysis.ts';
+} from '../../../code-analysis/codeAnalysis.ts';
 
 import {
 	setExecutionStartLine,

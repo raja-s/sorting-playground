@@ -9,8 +9,8 @@ import {
 	INTERRUPT_BUFFER_VALUES
 } from '../pyodide/pyodideExecutionWorkerApi.ts';
 
-import SimulationAnnotation from '../pyodide/code-analysis/SimulationAnnotation.ts';
-import { analyzePythonCode } from '../pyodide/code-analysis/codeAnalysis.ts';
+import SimulationAnnotation from '../code-analysis/SimulationAnnotation.ts';
+import { analyzePythonCode } from '../code-analysis/codeAnalysis.ts';
 
 import type ApplicationState from './ApplicationState.ts';
 import { type ExecutionState } from './ApplicationState.ts';

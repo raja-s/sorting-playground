@@ -7,11 +7,11 @@ import { shallow } from 'zustand/shallow';
 import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
 
-import { useApplicationStore } from '../state/useApplicationStore.ts';
-import { type SortingList } from '../state/SortingList.ts';
-import ExecutionCheckpoint, { type ExecutionHistory } from '../state/ExecutionCheckpoint.ts';
+import { useApplicationStore } from '../../state/useApplicationStore.ts';
+import { type SortingList } from '../../state/SortingList.ts';
+import ExecutionCheckpoint, { type ExecutionHistory } from '../../state/ExecutionCheckpoint.ts';
 
-import { type CodeAnalysisResult, type SortingListComparison } from '../pyodide/code-analysis/codeAnalysis.ts';
+import { type CodeAnalysisResult, type SortingListComparison } from '../../code-analysis/codeAnalysis.ts';
 
 import { Bar } from './Bar.tsx';
 

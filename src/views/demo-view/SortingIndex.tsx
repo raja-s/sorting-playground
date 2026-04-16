@@ -2,7 +2,7 @@
 import * as THREE from 'three';
 import { Text } from '@react-three/drei';
 
-import { type Variable } from '../pyodide/code-analysis/codeAnalysis.ts';
+import { type Variable } from '../../code-analysis/codeAnalysis.ts';
 
 import { JETBRAINS_MONO_FONT_PATH } from './fonts.ts';
 

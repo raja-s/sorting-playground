@@ -11,7 +11,7 @@ import {
 } from '@codemirror/view';
 import { RangeSet, StateEffect, StateField } from '@codemirror/state';
 
-import { SIMULATION_ANNOTATION_REGEX } from '../../pyodide/code-analysis/SimulationAnnotation.ts';
+import { SIMULATION_ANNOTATION_REGEX } from '../../../code-analysis/SimulationAnnotation.ts';
 
 /*
 	Executing Line Decorations

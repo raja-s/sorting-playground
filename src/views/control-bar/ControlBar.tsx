@@ -32,8 +32,8 @@ import { useTranslation } from 'react-i18next';
 
 import { fileOpen, fileSave } from 'browser-fs-access';
 
-import { useApplicationStore } from '../state/useApplicationStore.ts';
-import { type ExecutionState } from '../state/ApplicationState.ts';
+import { useApplicationStore } from '../../state/useApplicationStore.ts';
+import { type ExecutionState } from '../../state/ApplicationState.ts';
 
 import { ControlIconButton } from './ControlIconButton.tsx';
 

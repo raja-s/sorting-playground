@@ -1,5 +1,5 @@
 
-import { type CodeAnalysisResult } from '../pyodide/code-analysis/codeAnalysis.ts';
+import { type CodeAnalysisResult } from '../code-analysis/codeAnalysis.ts';
 
 import { type ConsoleContent } from './useApplicationStore.ts';
 import { type ExecutionHistory } from './ExecutionCheckpoint.ts';
