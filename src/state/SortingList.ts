@@ -1,7 +1,7 @@
 
 export type SortingElement = {
 	identifier: number,
-	value: any
+	value: unknown
 };
 
 export type SortingList = SortingElement[];

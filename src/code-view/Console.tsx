@@ -6,7 +6,7 @@ import { type CodeAnalysisResult } from '../pyodide/code-analysis/codeAnalysis.t
 
 import Typography from '@mui/material/Typography';
 
-export function Console() {
+export default function Console() {
 	const consoleContent = useApplicationStore(state => state.consoleContent);
 	const pythonCodeAnalysisResult = useApplicationStore(state => state.pythonCodeAnalysisResult);
 

@@ -10,7 +10,7 @@ export type ExecutionState = 'stopped' | 'paused' | 'running' | 'finished';
 export default interface ApplicationState {
 	sortingListVariableName: string;
 	sortingList: SortingList;
-	setSortingListData: (name: string, list: number[]) => void;
+	setSortingListData: (name: string, list: unknown[]) => void;
 
 	pythonExecutionWorkerReady: boolean;
 	pythonExecutionWorker: Worker;

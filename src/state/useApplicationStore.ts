@@ -45,10 +45,10 @@ export const useApplicationStore =
 					sortingListVariableName: '',
 					sortingList: [],
 
-					setSortingListData: (name: string, list: number[]) => {
+					setSortingListData: (name: string, list: unknown[]) => {
 						setState({
 							sortingListVariableName: name,
-							sortingList: list.map((value, index) => ({
+							sortingList: list.map((value: unknown, index: number) => ({
 								identifier: index,
 								value
 							}))

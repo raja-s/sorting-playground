@@ -2,26 +2,10 @@
 import Grid from '@mui/material/Grid';
 import Stack from '@mui/material/Stack';
 
-import { useTranslation } from 'react-i18next';
-
-import { CodeEditor } from './CodeEditor.tsx';
-import { Console } from './Console.tsx';
-
-const startingList: number[] = [3, 7, 1, 5, 2, 8, 9, 4, 6];
+import CodeEditor from './code-editor/CodeEditor.tsx';
+import Console from './Console.tsx';
 
 export function CodeView() {
-	const translate = useTranslation().t;
-
-	const startingListVariableName: string = translate('code.starting_list_variable_name');
-	const startingCode: string = `${startingListVariableName} = [${startingList.join(', ')}] #l#
-
-n = len(${startingListVariableName}) #t#
-
-${translate('code.to_do_comment')}
-`;
-
-	const startingCodeLines: string[] = startingCode.split('\n');
-
 	return (
 		<Grid
 			size={6}
@@ -37,12 +21,7 @@ ${translate('code.to_do_comment')}
 					inset: 0
 				}}
 			>
-				<CodeEditor
-					startingList={startingList}
-					startingListVariableName={startingListVariableName}
-					startingCode={startingCode}
-					startingCodeLines={startingCodeLines}
-				/>
+				<CodeEditor />
 				<Console />
 			</Stack>
 		</Grid>
