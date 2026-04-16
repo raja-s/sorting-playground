@@ -4,6 +4,11 @@ export type TextCoordinates = {
 	columnOffset: number
 };
 
+export type AbsolutePositionRange = {
+	start: number,
+	end: number
+};
+
 export type LineNumberRange = {
 	start: number,
 	end: number

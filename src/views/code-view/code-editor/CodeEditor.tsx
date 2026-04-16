@@ -7,7 +7,7 @@ import { useTranslation } from 'react-i18next';
 import { EditorView, ViewUpdate, keymap } from '@codemirror/view';
 import { type ChangeSpec, EditorState, type Extension } from '@codemirror/state';
 import { defaultKeymap } from '@codemirror/commands';
-import { indentUnit } from '@codemirror/language';
+import { indentUnit, syntaxTree } from '@codemirror/language';
 import { python } from '@codemirror/lang-python';
 
 import CodeMirrorEditor from '@uiw/react-codemirror';
@@ -20,6 +20,7 @@ import {
 	type Variable,
 	type CodeAnalysisResult
 } from '../../../code-analysis/codeAnalysis.ts';
+import { findSortingList } from '../../../code-analysis/sortingListLocation.ts';
 
 import {
 	setExecutionStartLine,
@@ -142,22 +143,27 @@ function handleViewUpdate(
 	setState: React.Dispatch<React.SetStateAction<State>>,
 	setSortingListData: (name: string, list: unknown[]) => void
 ): void {
-	if (executionState === 'stopped') {
-		setActivePythonCode(viewUpdate.state.doc.toString());
+	if (!viewUpdate.docChanged || executionState !== 'stopped') {
+		return;
 	}
 
+	setActivePythonCode(viewUpdate.state.doc.toString());
+
 	setStateFromViewUpdate(viewUpdate, setState);
-	setSortingListDataFromViewUpdate(viewUpdate, setSortingListData);
+
+	const data = findSortingList(syntaxTree(viewUpdate.state), viewUpdate.state.doc.toString());
+
+	if (data == null) {
+		setSortingListData('', []);
+	} else if (!data.invalidList) {
+		setSortingListData(data.sortingListVariableName, data.sortingList);
+	}
 }
 
 function setStateFromViewUpdate(
 	viewUpdate: ViewUpdate,
 	setState: React.Dispatch<React.SetStateAction<State>>
 ): void {
-	if (!viewUpdate.docChanged) {
-		return;
-	}
-
 	const lineCount: number = viewUpdate.state.doc.lines;
 	let longestLineLength: number = 0;
 
@@ -169,59 +175,6 @@ function setStateFromViewUpdate(
 	}
 
 	setState({ lineCount, longestLineLength });
-}
-
-function setSortingListDataFromViewUpdate(
-	viewUpdate: ViewUpdate,
-	setSortingListData: (name: string, list: unknown[]) => void
-): void {
-	if (!viewUpdate.docChanged) {
-		return;
-	}
-
-	const sourceCode: string = viewUpdate.state.doc.toString();
-
-	const sortingListSourceCodeStart: number = sourceCode.indexOf('[');
-
-	if (sortingListSourceCodeStart === -1) {
-		setSortingListData('', []);
-		return;
-	}
-
-	let sortingListSourceCodeEnd: number = sourceCode.indexOf(']', sortingListSourceCodeStart);
-
-	if (sortingListSourceCodeEnd === -1) {
-		setSortingListData('', []);
-		return;
-	}
-
-	sortingListSourceCodeEnd++;
-
-	let sortingList: unknown[];
-
-	try {
-		sortingList = eval(sourceCode.slice(sortingListSourceCodeStart, sortingListSourceCodeEnd));
-	} catch (error) {
-		// We ignore the error (for now)
-		return;
-	}
-
-	if ([...sortingList].some(element => !Number.isFinite(element))) {
-		return;
-	}
-
-	const equalSignIndex: number = sourceCode.lastIndexOf('=', sortingListSourceCodeStart);
-
-	if (equalSignIndex === -1) {
-		setSortingListData('', sortingList);
-		return;
-	}
-
-	const lineStart: number = Math.max(sourceCode.lastIndexOf('\n', equalSignIndex), 0);
-	const sortingListVariableName: string =
-		sourceCode.slice(lineStart, equalSignIndex).replaceAll('=', '').trim();
-
-	setSortingListData(sortingListVariableName, sortingList);
 }
 
 function setEntireEditorCode(
