@@ -233,19 +233,19 @@ function handleExecutionUpdate(
 	let effectPosition;
 	let effect;
 
-	if (executionCheckpoint.startLineNumber == null) {
+	if (executionCheckpoint.lineRange == null) {
 		effectPosition = transaction.state.doc.line(editorView.state.doc.lines).from;
 		effect = setExecutionEndLine;
 	} else if (executionHistoryPosition === 0) {
 		effectPosition = {
-			from: transaction.state.doc.line(executionCheckpoint.startLineNumber).from,
-			to: transaction.state.doc.line(executionCheckpoint.endLineNumber).to
+			from: transaction.state.doc.line(executionCheckpoint.lineRange.start).from,
+			to: transaction.state.doc.line(executionCheckpoint.lineRange.end).to
 		};
 		effect = setExecutionStartLine;
 	} else {
 		effectPosition = {
-			from: transaction.state.doc.line(executionCheckpoint.startLineNumber).from,
-			to: transaction.state.doc.line(executionCheckpoint.endLineNumber).to
+			from: transaction.state.doc.line(executionCheckpoint.lineRange.start).from,
+			to: transaction.state.doc.line(executionCheckpoint.lineRange.end).to
 		};
 		effect = setExecutingLine;
 	}
@@ -274,7 +274,7 @@ function getExecutionAnnotationsChanges(
 
 	let effectiveCheckpoint: ExecutionCheckpoint = executionCheckpoint;
 
-	if (executionCheckpoint.startLineNumber == null) {
+	if (executionCheckpoint.lineRange == null) {
 		if (executionHistoryPosition < 2) {
 			return resetChange;
 		} else {
@@ -285,9 +285,9 @@ function getExecutionAnnotationsChanges(
 	const annotationChanges =
 		cleanState.changes(
 			effectiveCheckpoint.squashExecutionStack().flatMap((checkpoint: ExecutionCheckpoint) =>
-				pythonCodeAnalysisResult.trackedVariableMap[checkpoint.startLineNumber]
+				pythonCodeAnalysisResult.trackedVariableMap[checkpoint.lineRange.start]
 					.map((variable: Variable) => ({
-						from: cleanState.doc.line(variable.definitionLineNumberRange.end).to,
+						from: cleanState.doc.line(variable.definitionLineRange.end).to,
 						insert: ` # ${variable.name} = ${
 							checkpoint.scopeLocals[variable.name]}`.replaceAll('\n', '\\n')
 					}))

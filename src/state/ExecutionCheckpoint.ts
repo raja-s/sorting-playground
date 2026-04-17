@@ -1,10 +1,11 @@
 
+import { type LineNumber, type Range } from '../common.ts';
+
 import { type SortingList } from './SortingList.ts';
 
 export default class ExecutionCheckpoint {
 
-	public readonly startLineNumber: number | null = null;
-	public readonly endLineNumber: number | null = null;
+	public readonly lineRange: Range<LineNumber> | null = null;
 	public readonly scopeLocals: object = {};
 	public readonly stackLevel: number = -1;
 	public readonly functionIdentifier: string = '';

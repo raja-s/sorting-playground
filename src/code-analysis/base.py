@@ -118,8 +118,10 @@ def _execution_checkpoint(
                 del scope_locals_copy[key]
 
         checkpoint: dict = {
-            'startLineNumber': None if line_number_range is None else line_number_range[0],
-            'endLineNumber': None if line_number_range is None else line_number_range[1],
+            'lineRange': None if line_number_range is None else {
+                'start': line_number_range[0],
+                'end': line_number_range[1]
+            },
             'scopeLocals': scope_locals_copy,
             'functionIdentifier': frame.f_code.co_qualname,
             'frameIdentifier': get_frame_identifier(frame),

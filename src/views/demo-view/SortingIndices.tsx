@@ -24,7 +24,7 @@ export default function SortingIndices() {
 	let executionCheckpoint: ExecutionCheckpoint =
 		executionHistory[Math.max(executionHistoryPosition - 1, 0)];
 
-	if (executionCheckpoint.startLineNumber == null) {
+	if (executionCheckpoint.lineRange == null) {
 		if (executionHistoryPosition < 2) {
 			return null;
 		} else {
@@ -41,7 +41,7 @@ export default function SortingIndices() {
 		<group>
 			{
 				executionCheckpoint.squashExecutionStack().flatMap((checkpoint: ExecutionCheckpoint) =>
-					pythonCodeAnalysisResult.visualizedVariableMap[checkpoint.startLineNumber]
+					pythonCodeAnalysisResult.visualizedVariableMap[checkpoint.lineRange.start]
 						.filter((variable: Variable) => variable.identifier in configuration.levelDistribution)
 						.map((variable: Variable) =>
 							<SortingIndex

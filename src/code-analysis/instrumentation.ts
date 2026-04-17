@@ -108,7 +108,7 @@ function createExecutionCheckpointCall(
 	instruction: ExecutionCheckpointInstruction
 ): string {
 	return `_execution_checkpoint(${toPythonBoolean(instruction.syncWithController)
-		}, (${instruction.lineNumberRange.start}, ${instruction.lineNumberRange.end
+		}, (${instruction.lineRange.start}, ${instruction.lineRange.end
 		}), locals(), inspect.currentframe())`;
 }
 

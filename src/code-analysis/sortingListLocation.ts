@@ -1,10 +1,10 @@
 
 import { type SyntaxNode, Tree, TreeCursor } from '@lezer/common';
 
-import { type AbsolutePositionRange } from './common.ts';
+import { type AbsolutePosition, type Range } from '../common.ts';
 
 export type MinimalSortingListData = {
-	assignmentRange: AbsolutePositionRange,
+	assignmentRange: Range<AbsolutePosition>,
 	sortingListVariableName: string,
 	sortingList: unknown[],
 	invalidList: boolean
@@ -58,7 +58,6 @@ function createSortingListData(
 	cursor.next();
 
 	do {
-		console.log(`Node type: ${cursor.name} at ${cursor.from}-${cursor.to}`);
 		switch (cursor.name) {
 			case 'VariableName': {
 				if (sortingListVariableName !== null) {

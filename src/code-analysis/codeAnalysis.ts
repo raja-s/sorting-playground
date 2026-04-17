@@ -8,11 +8,11 @@ import NodeEndsSetterVisitor from './NodeEndsSetterVisitor.ts';
 
 import SimulationAnnotation, { type ModifierKind, Modifier } from './SimulationAnnotation.ts';
 
-import { type LineNumberRange } from './common.ts';
+import { type LineNumber, type Range } from '../common.ts';
 import { type InstrumentationResult, instrumentCode } from './instrumentation.ts';
 
 export type ExecutionCheckpointInstruction = {
-	lineNumberRange: LineNumberRange,
+	lineRange: Range<LineNumber>,
 	syncWithController: boolean
 };
 
@@ -27,7 +27,7 @@ export type NestedElifLinesExtraLevels = {
 export type Variable = {
 	identifier: string,
 	name: string,
-	definitionLineNumberRange: LineNumberRange
+	definitionLineRange: Range<LineNumber>
 };
 
 export type LineNumberVariableMap = {
@@ -132,7 +132,7 @@ class PythonCodeAnalyzer extends BaseNodeVisitor {
 
 		if (SAVE_EXECUTION_CHECKOINT_NODE_TYPES.has(node.nodeType) && !node.isElif) {
 			this.executionCheckpointInstructions[lineNumber] = {
-				lineNumberRange: {
+				lineRange: {
 					start: lineNumber,
 					end: node.end_lineno as number
 				},
@@ -253,7 +253,7 @@ class PythonCodeAnalyzer extends BaseNodeVisitor {
 
 		if (ifNode.isElif) {
 			this.executionCheckpointInstructions[lineNumber] = {
-				lineNumberRange: {
+				lineRange: {
 					start: lineNumber,
 					end: ifNode.end_lineno as number
 				},
@@ -463,7 +463,7 @@ function createVariable(node: ASTNodeUnion, name: string): Variable {
 	return {
 		identifier: `${node.lineno}_${name}`,
 		name,
-		definitionLineNumberRange: {
+		definitionLineRange: {
 			start: node.lineno as number,
 			end: node.end_lineno as number
 		}

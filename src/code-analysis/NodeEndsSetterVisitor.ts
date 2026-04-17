@@ -14,7 +14,8 @@ import SourceCode from './SourceCode.ts';
 
 import BaseNodeVisitor from './BaseNodeVisitor.ts';
 
-import { type TextCoordinates, countOccurrences } from './common.ts';
+import { type TextCoordinates } from '../common.ts';
+import { countOccurrences } from './common.ts';
 
 export default class NodeEndsSetterVisitor extends BaseNodeVisitor {
 

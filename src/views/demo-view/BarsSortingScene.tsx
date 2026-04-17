@@ -204,14 +204,16 @@ function checkAndSetActiveComparison(
 	const executionCheckpoint: ExecutionCheckpoint =
 		executionHistory[executionHistoryPosition - 1];
 
-	const lineNumber = executionCheckpoint.startLineNumber;
-
-	if (!(lineNumber in pythonCodeAnalysisResult.comparisonMap)) {
+	if (
+		executionCheckpoint.lineRange == null ||
+		!(executionCheckpoint.lineRange.start in pythonCodeAnalysisResult.comparisonMap)
+	) {
 		setActiveComparison(null);
 		return;
 	}
 
-	const comparison: SortingListComparison = pythonCodeAnalysisResult.comparisonMap[lineNumber];
+	const comparison: SortingListComparison =
+		pythonCodeAnalysisResult.comparisonMap[executionCheckpoint.lineRange.start];
 
 	const activeComparison: Partial<ActiveSortingListComparison> = {};
 
