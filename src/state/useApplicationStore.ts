@@ -120,38 +120,18 @@ export const useApplicationStore =
 						setState((state: ApplicationState) => ({ focusComparedBars: !state.focusComparedBars }));
 					},
 
-					generateShareLink: () => {
-						const state: ApplicationState = getState();
-
-						const dataToCompress: Partial<ApplicationState> = {
-							sortingListVariableName: state.sortingListVariableName,
-							sortingList:             state.sortingList,
-							activePythonCode:        state.activePythonCode,
-							executionSpeed:          state.executionSpeed,
-							barsColored:             state.barsColored,
-							focusComparedBars:       state.focusComparedBars
-						};
-
-						const persistentWrapper = {
-							state: dataToCompress,
+					generateShareLink: () =>
+						compressDataIntoUrl(JSON.stringify({
+							state: createDataForShareLink(getState()),
 							version: 0
-						};
-
-						return compressDataIntoUrl(JSON.stringify(persistentWrapper));
-					}
+						}))
 				}),
 				{
 					name: URL_FRAGMENT_STATE_VARIABLE_NAME,
 					storage: createJSONStorage(() => urlStorage),
 
-					partialize: (state: ApplicationState): Partial<ApplicationState> => ({
-						sortingListVariableName: state.sortingListVariableName,
-						sortingList:             state.sortingList,
-						activePythonCode:        state.activePythonCode,
-						executionSpeed:          state.executionSpeed,
-						barsColored:             state.barsColored,
-						focusComparedBars:       state.focusComparedBars
-					})
+					partialize: (state: ApplicationState): Partial<ApplicationState> =>
+						createDataForShareLink(state)
 				}
 			)
 		)
@@ -167,6 +147,20 @@ if (useApplicationStore.persist.hasHydrated()) {
 
 function handleHydrationFromUrlComplete(state: ApplicationState): void {
 	state.bumpEditorReloadCodeTriggerValue();
+}
+
+function createDataForShareLink(state: ApplicationState): Partial<ApplicationState> {
+	const pythonCode: string = state.executionState === 'stopped' ?
+		state.activePythonCode : state.annotatedActivePythonCode;
+
+	return {
+		sortingListVariableName: state.sortingListVariableName,
+		sortingList:             state.sortingList,
+		activePythonCode:        pythonCode,
+		executionSpeed:          state.executionSpeed,
+		barsColored:             state.barsColored,
+		focusComparedBars:       state.focusComparedBars
+	};
 }
 
 function reassessReadyToExecuteCode(setState: SetState): void {
