@@ -70,7 +70,7 @@ function createSortingListData(
 
 			case 'ArrayExpression': {
 				try {
-					sortingList = eval(sourceCode.slice(cursor.from, cursor.to));
+					sortingList = eval(sourceCode.slice(cursor.from, cursor.to).replace(/#.*/g, ''));
 
 					if ([...sortingList].some(element => !Number.isFinite(element))) {
 						sortingList = null;

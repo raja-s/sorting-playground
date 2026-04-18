@@ -315,7 +315,7 @@ function handleFrame(simulationState: SimulationState, delta: number): void {
 	const alpha = 1 - Math.exp(-8 * delta);
 
 	for (const identifier in simulationState.targetPositions) {
-		const barGroup: THREE.Group = simulationState.bars[identifier].groupElement;
+		const barGroup: THREE.Group = simulationState.bars[identifier]?.groupElement;
 		const targetPosition = simulationState.targetPositions[identifier];
 
 		if (barGroup == null) {
@@ -338,7 +338,7 @@ function handleFrame(simulationState: SimulationState, delta: number): void {
 	}
 
 	for (const identifier in simulationState.targetOpacities) {
-		const barGroup: THREE.Group = simulationState.bars[identifier].groupElement;
+		const barGroup: THREE.Group = simulationState.bars[identifier]?.groupElement;
 		const targetOpacity = simulationState.targetOpacities[identifier];
 
 		if (barGroup == null) {
