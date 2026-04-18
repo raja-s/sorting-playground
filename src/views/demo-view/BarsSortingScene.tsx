@@ -1,65 +1,63 @@
 
-import { type RefObject, useCallback, useEffect, useRef, useState } from 'react';
+import { type RefObject, useCallback, useEffect, useRef } from 'react';
 import * as React from 'react';
 
 import { shallow } from 'zustand/shallow';
 
 import { useFrame } from '@react-three/fiber';
+import { Text } from '@react-three/drei';
 import * as THREE from 'three';
 
+import { type ExecutionState } from '../../state/ApplicationState.ts';
 import { useApplicationStore } from '../../state/useApplicationStore.ts';
 import { type SortingElement, type SortingList } from '../../state/SortingList.ts';
 import ExecutionCheckpoint, { type ExecutionHistory } from '../../state/ExecutionCheckpoint.ts';
 
 import { type CodeAnalysisResult, type SortingListComparison } from '../../code-analysis/codeAnalysis.ts';
 
-import { Bar } from './Bar.tsx';
-
 type Bounds = {
 	minimum: number,
 	maximum: number
 };
 
-type MountedBars = {
-	[identifier: number]: THREE.Group
-};
-
-type Position = {
-	x: number,
-	y: number,
-	z: number
-};
-
-type TargetPositions = {
-	[identifier: number]: Position
+type Bar = {
+	identifier: number,
+	groupElement: THREE.Group
 };
 
 type ActiveSortingListComparison = {
 	leftHandSideSortingListIdentifier?: number,
 	rightHandSideSortingListIdentifier?: number
-} | null;
+};
+
+type SimulationState = {
+	bars: { [identifier: number]: Bar },
+	targetPositions: { [identifier: number]: THREE.Vector3 },
+	targetOpacities: { [identifier: number]: number }
+};
 
 const STABILIZATION_THRESHOLD: number = 10e-4;
 
 export function BarsSortingScene() {
 	const sortingList: SortingList = useApplicationStore(state => state.sortingList);
 	const barsColored: boolean = useApplicationStore(state => state.barsColored);
-	const focusComparedBars: boolean = useApplicationStore(state => state.focusComparedBars);
-
-	const [activeComparison, setActiveComparison]:
-		[ActiveSortingListComparison, React.Dispatch<React.SetStateAction<ActiveSortingListComparison>>] =
-			useState<ActiveSortingListComparison>(null);
 
 	const bounds: Bounds | null = determineBounds(sortingList);
 
-	const mountedBarsRef: RefObject<MountedBars> = useRef({});
-	const targetPositionsRef: RefObject<TargetPositions> = useRef({});
+	const simulationStateRef: RefObject<SimulationState> = useRef({
+		bars: {},
+		targetPositions: {},
+		targetOpacities: {}
+	});
 
 	const registerBar = useCallback((identifier: number, barGroup: THREE.Group) => {
-		if (barGroup === null) {
-			delete mountedBarsRef.current[identifier];
+		if (barGroup == null) {
+			delete simulationStateRef.current.bars[identifier];
 		} else {
-			mountedBarsRef.current[identifier] = barGroup;
+			simulationStateRef.current.bars[identifier] = {
+				identifier,
+				groupElement: barGroup
+			};
 		}
 	}, []);
 
@@ -68,42 +66,21 @@ export function BarsSortingScene() {
 			state => [
 				state.pythonCodeAnalysisResult,
 				state.executionHistory,
-				state.executionHistoryPosition
+				state.executionHistoryPosition,
+				state.focusComparedBars
 			] as const,
 			([
 				pythonCodeAnalysisResult,
 				executionHistory,
-				executionHistoryPosition
+				executionHistoryPosition,
+				focusComparedBars
 			]) => {
-				if (executionHistoryPosition === 0 ||
-					executionHistory[executionHistoryPosition - 1].sortingList == null)
-				{
-					return;
-				}
-
-				for (const identifier in mountedBarsRef.current) {
-					mountedBarsRef.current[identifier].visible = false;
-				}
-
-				const executionCheckpoint: ExecutionCheckpoint =
-					executionHistory[executionHistoryPosition - 1];
-
-				executionCheckpoint.sortingList.forEach(
-					(element: SortingElement, index: number) => {
-						mountedBarsRef.current[element.identifier].visible = true;
-						targetPositionsRef.current[element.identifier] = {
-							x: index,
-							y: executionCheckpoint.sortingElementLevels[index],
-							z: 0
-						};
-					}
-				);
-
-				checkAndSetActiveComparison(
+				handleStateChangeExecutionRunning(
+					simulationStateRef.current,
 					pythonCodeAnalysisResult,
 					executionHistory,
 					executionHistoryPosition,
-					setActiveComparison
+					focusComparedBars
 				);
 			},
 			{ equalityFn: shallow }
@@ -118,82 +95,70 @@ export function BarsSortingScene() {
 				state.executionState
 			] as const,
 			([sortingList, executionState]) => {
-				if (executionState !== 'stopped') {
-					return;
-				}
-
-				setActiveComparison(null);
-
-				targetPositionsRef.current = {};
-				sortingList.forEach((element: SortingElement, index: number) => {
-					if (element.identifier in mountedBarsRef.current) {
-						mountedBarsRef.current[element.identifier].visible = true;
-					}
-					targetPositionsRef.current[element.identifier] = {
-						x: index,
-						y: 0,
-						z: 0
-					};
-				});
+				handleStateChangeExecutionStopped(
+					simulationStateRef.current,
+					sortingList,
+					executionState
+				)
 			}
 		);
 		return unsubscribe;
 	}, []);
 
-	useFrame((state, delta) => {
-		const alpha = 1 - Math.exp(-8 * delta);
-
-		for (const identifier in targetPositionsRef.current) {
-			const barGroup = mountedBarsRef.current[identifier];
-			const targetPosition = targetPositionsRef.current[identifier];
-
-			if (barGroup == null) {
-				delete mountedBarsRef.current[identifier];
-				delete targetPositionsRef.current[identifier];
-				continue;
-			}
-
-			if (
-				Math.abs(targetPosition.x - barGroup.position.x) < STABILIZATION_THRESHOLD &&
-				Math.abs(targetPosition.y - barGroup.position.y) < STABILIZATION_THRESHOLD &&
-				Math.abs(targetPosition.z - barGroup.position.z) < STABILIZATION_THRESHOLD
-			) {
-				barGroup.position.x = targetPosition.x;
-				barGroup.position.y = targetPosition.y;
-				barGroup.position.z = targetPosition.z;
-				delete targetPositionsRef.current[identifier];
-			} else {
-				barGroup.position.x = THREE.MathUtils.lerp(barGroup.position.x, targetPosition.x, alpha);
-				barGroup.position.y = THREE.MathUtils.lerp(barGroup.position.y, targetPosition.y, alpha);
-				barGroup.position.z = THREE.MathUtils.lerp(barGroup.position.z, targetPosition.z, alpha);
-			}
-		}
+	useFrame((_, delta) => {
+		handleFrame(simulationStateRef.current, delta);
 	});
 
 	return bounds == null ? null : (
 		<group>
 			{sortingList.map((element, index) =>
-				<Bar
-					ref={(barGroup: THREE.Group) => {
-						registerBar(element.identifier, barGroup);
-					}}
-
-					key={element.identifier}
-					position={index}
-					value={element.value as number}
-					minimumValue={bounds.minimum}
-					maximumValue={bounds.maximum}
-					focused={
-						!focusComparedBars ||
-						activeComparison == null ||
-						element.identifier === activeComparison.leftHandSideSortingListIdentifier ||
-						element.identifier === activeComparison.rightHandSideSortingListIdentifier
-					}
-					colored={barsColored}
-				/>
+				createBar(registerBar, element, index, bounds.maximum, barsColored)
 			)}
 		</group>
 	)
+}
+
+function createBar(
+	registerBar: (identifier: number, barGroup: THREE.Group) => void,
+	element: SortingElement,
+	index: number,
+	maximumValue: number,
+	colored: boolean
+): React.JSX.Element {
+	const value: number = element.value as number;
+
+	return (
+		<group
+			key={element.identifier}
+			ref={(barGroup: THREE.Group) => {
+				registerBar(element.identifier, barGroup);
+			}}
+			position={[index, 0, 0]}
+		>
+			<mesh position={[0, value / 2, 0]}>
+				<planeGeometry args={[0.9, value]} />
+				<meshBasicMaterial
+					toneMapped={false}
+					color={barColor(value, maximumValue, colored)}
+					transparent={true}
+					opacity={1}
+				/>
+			</mesh>
+			<Text
+				position={[0, value - 0.1, 0.01]}
+				fontSize={0.5}
+				anchorY='top'
+			>
+				{value}
+				<meshBasicMaterial
+					toneMapped={false}
+					color={labelColor(value, maximumValue, colored)}
+					transparent={true}
+					opacity={1}
+				/>
+			</Text>
+		</group>
+	);
 }
 
 function determineBounds(sortingList: SortingList): Bounds | null {
@@ -226,26 +191,15 @@ function determineBounds(sortingList: SortingList): Bounds | null {
 	return { minimum , maximum };
 }
 
-function checkAndSetActiveComparison(
+function getActiveComparison(
 	pythonCodeAnalysisResult: CodeAnalysisResult,
-	executionHistory: ExecutionHistory,
-	executionHistoryPosition: number,
-	setActiveComparison: React.Dispatch<React.SetStateAction<ActiveSortingListComparison>>
-): void {
-	if (executionHistoryPosition === 0) {
-		setActiveComparison(null);
-		return;
-	}
-
-	const executionCheckpoint: ExecutionCheckpoint =
-		executionHistory[executionHistoryPosition - 1];
-
+	executionCheckpoint: ExecutionCheckpoint
+): ActiveSortingListComparison | null {
 	if (
 		executionCheckpoint.lineRange == null ||
 		!(executionCheckpoint.lineRange.start in pythonCodeAnalysisResult.comparisonMap)
 	) {
-		setActiveComparison(null);
-		return;
+		return null;
 	}
 
 	const comparison: SortingListComparison =
@@ -272,7 +226,7 @@ function checkAndSetActiveComparison(
 			executionCheckpoint.sortingList[rightHandSideSortingListIndex].identifier;
 	}
 
-	setActiveComparison(activeComparison);
+	return activeComparison;
 }
 
 function evaluateIndexExpression(
@@ -288,4 +242,153 @@ function evaluateIndexExpression(
 	evaluationCode += indexExpression;
 
 	return eval(evaluationCode);
+}
+
+function handleStateChangeExecutionRunning(
+	simulationState: SimulationState,
+	pythonCodeAnalysisResult: CodeAnalysisResult,
+	executionHistory: ExecutionHistory,
+	executionHistoryPosition: number,
+	focusComparedBars: boolean
+): void {
+	if (
+		executionHistoryPosition === 0 ||
+		executionHistory[executionHistoryPosition - 1].sortingList == null
+	) {
+		return;
+	}
+
+	for (const identifier in simulationState.bars) {
+		simulationState.targetPositions[identifier] =
+			simulationState.bars[identifier].groupElement.position.clone();
+		simulationState.targetPositions[identifier].setY(1);
+
+		simulationState.targetOpacities[identifier] = 0;
+	}
+
+	const executionCheckpoint: ExecutionCheckpoint =
+		executionHistory[executionHistoryPosition - 1];
+
+	const activeComparison: ActiveSortingListComparison | null =
+		getActiveComparison(pythonCodeAnalysisResult, executionCheckpoint);
+
+	executionCheckpoint.sortingList.forEach(
+		(element: SortingElement, index: number) => {
+			simulationState.targetPositions[element.identifier] =
+				new THREE.Vector3(index, executionCheckpoint.sortingElementLevels[index], 0);
+
+			simulationState.targetOpacities[element.identifier] =
+				1 / (executionCheckpoint.sortingElementLevels[index] + 1);
+
+			if (
+				focusComparedBars &&
+				activeComparison != null &&
+				!barIsFocused(element.identifier, activeComparison)
+			) {
+				simulationState.targetOpacities[element.identifier] /= 4;
+			}
+		}
+	);
+}
+
+function handleStateChangeExecutionStopped(
+	simulationState: SimulationState,
+	sortingList: SortingList,
+	executionState: ExecutionState
+): void {
+	if (executionState !== 'stopped') {
+		return;
+	}
+
+	simulationState.targetPositions = {};
+	sortingList.forEach((element: SortingElement, index: number) => {
+		simulationState.targetPositions[element.identifier] =
+			new THREE.Vector3(index, 0, 0);
+
+		if (element.identifier in simulationState.bars) {
+			simulationState.targetOpacities[element.identifier] = 1;
+		}
+	});
+}
+
+function handleFrame(simulationState: SimulationState, delta: number): void {
+	const alpha = 1 - Math.exp(-8 * delta);
+
+	for (const identifier in simulationState.targetPositions) {
+		const barGroup: THREE.Group = simulationState.bars[identifier].groupElement;
+		const targetPosition = simulationState.targetPositions[identifier];
+
+		if (barGroup == null) {
+			delete simulationState.bars[identifier];
+			delete simulationState.targetPositions[identifier];
+			delete simulationState.targetOpacities[identifier];
+			continue;
+		}
+
+		if (targetPosition.distanceTo(barGroup.position) < STABILIZATION_THRESHOLD) {
+			barGroup.position.x = targetPosition.x;
+			barGroup.position.y = targetPosition.y;
+			barGroup.position.z = targetPosition.z;
+			delete simulationState.targetPositions[identifier];
+		} else {
+			barGroup.position.x = THREE.MathUtils.lerp(barGroup.position.x, targetPosition.x, alpha);
+			barGroup.position.y = THREE.MathUtils.lerp(barGroup.position.y, targetPosition.y, alpha);
+			barGroup.position.z = THREE.MathUtils.lerp(barGroup.position.z, targetPosition.z, alpha);
+		}
+	}
+
+	for (const identifier in simulationState.targetOpacities) {
+		const barGroup: THREE.Group = simulationState.bars[identifier].groupElement;
+		const targetOpacity = simulationState.targetOpacities[identifier];
+
+		if (barGroup == null) {
+			delete simulationState.bars[identifier];
+			delete simulationState.targetPositions[identifier];
+			delete simulationState.targetOpacities[identifier];
+			continue;
+		}
+
+		const barGroupOpacity: number = getBarOpacity(barGroup);
+
+		if (Math.abs(targetOpacity - barGroupOpacity) < STABILIZATION_THRESHOLD) {
+			setBarOpacity(barGroup, targetOpacity);
+			delete simulationState.targetOpacities[identifier];
+		} else {
+			setBarOpacity(barGroup, THREE.MathUtils.lerp(barGroupOpacity, targetOpacity, alpha));
+		}
+	}
+}
+
+function barIsFocused(barIdentifier: number, activeComparison: ActiveSortingListComparison): boolean {
+	return barIdentifier === activeComparison.leftHandSideSortingListIdentifier ||
+		barIdentifier === activeComparison.rightHandSideSortingListIdentifier;
+}
+
+function getBarOpacity(barGroup: THREE.Group): number {
+	return ((barGroup.children[0] as THREE.Mesh).material as THREE.Material).opacity;
+}
+
+function setBarOpacity(barGroup: THREE.Group, opacity: number): void {
+	((barGroup.children[0] as THREE.Mesh).material as THREE.Material).opacity = opacity;
+	((barGroup.children[1] as THREE.Mesh).material as THREE.Material).opacity = opacity;
+}
+
+function barColor(
+	value: number,
+	maximumValue: number,
+	colored: boolean
+): string {
+	const hue = ((value - 1) / maximumValue) * 360;
+	const saturation = colored ? 100 : 0;
+	return `hsl(${hue}, ${saturation}%, 65%)`;
+}
+
+function labelColor(
+	value: number,
+	maximumValue: number,
+	colored: boolean
+): string {
+	const hue = ((value - 1) / maximumValue) * 360;
+	const saturation = colored ? 80 : 0;
+	return `hsl(${hue}, ${saturation}%, 40%)`;
 }
