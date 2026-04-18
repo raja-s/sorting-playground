@@ -260,7 +260,11 @@ function handleExecutionCheckpoint(
 
 	setState((state: ApplicationState) => {
 		const checkpoint: ExecutionCheckpoint =
-			new ExecutionCheckpoint(checkpointObject, state.executionHistory);
+			new ExecutionCheckpoint(
+				checkpointObject,
+				state.executionHistory,
+				state.pythonCodeAnalysisResult.functions
+			);
 
 		return {
 			executionHistory: state.executionHistory.concat([ checkpoint ]),

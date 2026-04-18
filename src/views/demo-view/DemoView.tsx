@@ -16,7 +16,8 @@ import { JETBRAINS_MONO_FONT_PATH } from './fonts.ts';
 useFont.preload(JETBRAINS_MONO_FONT_PATH);
 
 export function DemoView() {
-	const groupRef: RefObject<THREE.Group> = useRef<THREE.Group>();
+	const sceneGroupRef: RefObject<THREE.Group> = useRef<THREE.Group>();
+	const sortingSceneGroupRef: RefObject<THREE.Group> = useRef<THREE.Group>();
 
 	return (
 		<Grid
@@ -25,12 +26,17 @@ export function DemoView() {
 		>
 			<Canvas orthographic>
 				<Suspense fallback={null}>
-					<SmoothCamera sceneGroupRef={groupRef} />
+					<SmoothCamera
+						sceneGroupRef={sceneGroupRef}
+						sortingSceneGroupRef={sortingSceneGroupRef}
+					/>
 					<ambientLight />
-					<group ref={groupRef}>
-						<BarsSortingScene />
+					<group ref={sceneGroupRef}>
+						<group ref={sortingSceneGroupRef}>
+							<BarsSortingScene />
+						</group>
+						<SortingIndices />
 					</group>
-					<SortingIndices />
 					{getDummyText()}
 				</Suspense>
 			</Canvas>

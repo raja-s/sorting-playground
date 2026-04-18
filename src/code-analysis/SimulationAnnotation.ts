@@ -1,7 +1,7 @@
 
 import SourceCode from './SourceCode.ts';
 
-const MODIFIER_ARGUMENT_DESCRIPTOR: string = '[a-zA-Z0-9_:]+';
+const MODIFIER_ARGUMENT_DESCRIPTOR: string = '[a-zA-Z0-9_:-]+';
 const MODIFIER_DESCRIPTOR: string = `[dlstv](?:\\(${MODIFIER_ARGUMENT_DESCRIPTOR}(?:,${MODIFIER_ARGUMENT_DESCRIPTOR})*\\))?`;
 
 export const MODIFIER_REGEX: RegExp = new RegExp(MODIFIER_DESCRIPTOR, 'g');

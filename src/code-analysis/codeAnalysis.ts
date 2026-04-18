@@ -24,6 +24,15 @@ export type NestedElifLinesExtraLevels = {
 	[lineNumber: number]: number
 };
 
+export type Function = {
+	identifier: string,
+	divideRanges: Range<string>[]
+};
+
+export type Functions = {
+	[functionIdentifier: string]: Function
+};
+
 export type Variable = {
 	identifier: string,
 	name: string,
@@ -54,6 +63,7 @@ export type SortingListComparisonMap = {
 };
 
 export type CodeAnalysisResult = {
+	functions: Functions,
 	trackedVariableMap: LineNumberVariableMap,
 	visualizedVariableMap: LineNumberVariableMap,
 	visualizedVariablesConfiguration: VisualizedVariablesConfiguration,
@@ -93,6 +103,9 @@ class PythonCodeAnalyzer extends BaseNodeVisitor {
 	public executionCheckpointInstructions: ExecutionCheckpointInstructions = {};
 
 	public nestedElifLinesExtraLevels: NestedElifLinesExtraLevels = {};
+
+	private qualifiedNamePrefix: string = '';
+	public functions: Functions = {};
 
 	private trackedVariablesStack: Variable[][] = [ [] ];
 	public trackedVariableMap: LineNumberVariableMap = {};
@@ -192,31 +205,48 @@ class PythonCodeAnalyzer extends BaseNodeVisitor {
 		this.genericVisit(forNode);
 	}
 
-	visitFunctionDef(defNode: ASTNodeUnion): void {
+	visitClassDef(classNode: ASTNodeUnion): void {
+		const previousQualifiedNamePrefix: string = this.qualifiedNamePrefix;
+		this.qualifiedNamePrefix += `${classNode.name}.`;
+
+		this.genericVisit(classNode);
+
+		this.qualifiedNamePrefix = previousQualifiedNamePrefix;
+	}
+
+	visitFunctionDef(functionNode: ASTNodeUnion): void {
+		const functionObject: Function = this.createFunction(functionNode);
+
+		this.functions[functionObject.identifier] = functionObject;
+
 		this.trackedVariablesStack.push([]);
 		this.visualizedVariablesStack.push([]);
 
 		this.trackedVariablesStackHead().push(
-			...defNode.args.args
+			...functionNode.args.args
 				.filter((parameter: ASTNodeUnion) => this.variableIsTracked(parameter, parameter.arg))
 				.map((parameter: ASTNodeUnion) => createVariable(parameter, parameter.arg))
 		);
 
 		this.registerAndPushVisualizedVariables(
-			defNode.args.args
+			functionNode.args.args
 				.map((parameter: ASTNodeUnion) => this.getVisualizedVariable(parameter, parameter.arg))
 		);
+
+		const previousQualifiedNamePrefix: string = this.qualifiedNamePrefix;
+		this.qualifiedNamePrefix += `${functionNode.name}.<locals>.`;
 
 		const previousSyncWithControllerOnCheckpoints: boolean =
 			this.syncWithControllerOnCheckpoints;
 
-		if (this.nodeHasModifier(defNode, 'skip')) {
+		if (this.nodeHasModifier(functionNode, 'skip')) {
 			this.syncWithControllerOnCheckpoints = false;
 		}
 
-		this.genericVisit(defNode);
+		this.genericVisit(functionNode);
 
 		this.syncWithControllerOnCheckpoints = previousSyncWithControllerOnCheckpoints;
+		this.qualifiedNamePrefix = previousQualifiedNamePrefix;
 		this.trackedVariablesStack.pop();
 		this.visualizedVariablesStack.pop();
 	}
@@ -350,6 +380,32 @@ class PythonCodeAnalyzer extends BaseNodeVisitor {
 
 	private visualizedVariablesStackHead(): Variable[] {
 		return this.visualizedVariablesStack[this.visualizedVariablesStack.length - 1];
+	}
+
+	private createFunction(node: ASTNodeUnion): Function {
+		const functionObject: Function = {
+			identifier: `${this.qualifiedNamePrefix}${node.name}`,
+			divideRanges: []
+		};
+
+		const divideModifier: Modifier | null = this.getModifierOnNode(node, 'divide');
+
+		if (divideModifier == null || divideModifier.modifierArguments.length === 0) {
+			return functionObject;
+		}
+
+		divideModifier.modifierArguments
+			.map((argument: string) => {
+				const bounds: string[] = argument.split('-');
+				return bounds.length > 2 ? null :
+					{ start: bounds[0], end: bounds[1 % bounds.length] };
+			})
+			.filter((range: Range<string> | null) => range != null)
+			.forEach((range: Range<string>) => {
+				functionObject.divideRanges.push(range);
+			});
+
+		return functionObject;
 	}
 
 	private registerAndPushVisualizedVariables(variables: (VisualizedVariable | null)[]): void {
@@ -557,6 +613,7 @@ export function analyzePythonCode(
 		);
 
 	return {
+		functions: analyzer.functions,
 		trackedVariableMap: analyzer.trackedVariableMap,
 		visualizedVariableMap: analyzer.visualizedVariableMap,
 		visualizedVariablesConfiguration: distributeVariables(analyzer.visualizedVariables),

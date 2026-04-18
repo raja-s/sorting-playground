@@ -1,15 +1,18 @@
 
-import { type RefObject, useEffect, useRef } from 'react';
+import { type RefObject, useEffect } from 'react';
 
 import { useFrame, useThree } from '@react-three/fiber';
 import * as THREE from 'three';
 
 type SmoothCameraProps = {
-	sceneGroupRef: RefObject<THREE.Group>
+	sceneGroupRef: RefObject<THREE.Group>,
+	sortingSceneGroupRef: RefObject<THREE.Group>
 };
 
 export function SmoothCamera(props: SmoothCameraProps) {
-	const { camera } = useThree();
+	const { camera, size: canvasSize } = useThree();
+
+	const aspectRatio = canvasSize.width / canvasSize.height;
 
 	useEffect(() => {
 		camera.rotation.set(0, 0, 0);
@@ -17,20 +20,34 @@ export function SmoothCamera(props: SmoothCameraProps) {
 	}, [camera]);
 
 	useFrame((state, delta) => {
-		if (props.sceneGroupRef.current == null) {
+		if (
+			props.sceneGroupRef.current == null ||
+			props.sortingSceneGroupRef.current == null
+		) {
 			return
 		}
 
-		const box = new THREE.Box3().setFromObject(props.sceneGroupRef.current);
+		const sceneBox = new THREE.Box3().setFromObject(props.sceneGroupRef.current);
+		const sortingSceneBox = new THREE.Box3().setFromObject(props.sortingSceneGroupRef.current);
 
-		const groupSize = new THREE.Vector3();
-		box.getSize(groupSize);
+		const sceneGroupSize = new THREE.Vector3();
+		sceneBox.getSize(sceneGroupSize);
 
-		const groupCenter = new THREE.Vector3();
-		box.getCenter(groupCenter);
+		const sceneGroupCenter = new THREE.Vector3();
+		sceneBox.getCenter(sceneGroupCenter);
 
-		const targetPosition = new THREE.Vector3(groupCenter.x, groupCenter.y - 1, 1);
-		const targetZoom = Math.min(600 / Math.max(groupSize.x, groupSize.y), 100);
+		const sortingSceneGroupSize = new THREE.Vector3();
+		sortingSceneBox.getSize(sortingSceneGroupSize);
+
+		const sortingSceneGroupCenter = new THREE.Vector3();
+		sortingSceneBox.getCenter(sortingSceneGroupCenter);
+
+		const targetPosition = new THREE.Vector3(
+			sortingSceneGroupCenter.x,
+			(sortingSceneGroupCenter.y + 2 * sceneGroupCenter.y) / 3,
+			1
+		);
+		const targetZoom = Math.min(900 / Math.max(sortingSceneGroupSize.x / aspectRatio, sceneGroupSize.y), 75);
 
 		const alpha = 1 - Math.exp(-5 * delta);
 

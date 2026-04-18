@@ -39,6 +39,9 @@ export default function SortingIndices() {
 
 	return (
 		<group>
+			<mesh visible={false} position={[-1, -0.5 - variableCount * 1.2, 0]}>
+				<boxGeometry />
+			</mesh>
 			{
 				executionCheckpoint.squashExecutionStack().flatMap((checkpoint: ExecutionCheckpoint) =>
 					pythonCodeAnalysisResult.visualizedVariableMap[checkpoint.lineRange.start]

@@ -13,19 +13,19 @@ type BarProps = {
 	colored?: boolean
 };
 
-export const Bar = forwardRef<THREE.Mesh, BarProps>(
-	function Bar(props: BarProps, ref: ForwardedRef<THREE.Mesh>) {
+export const Bar = forwardRef<THREE.Group, BarProps>(
+	function Bar(props: BarProps, ref: ForwardedRef<THREE.Group>) {
 		return (
 			<group
 				ref={ref}
-				position={[props.position, props.value / 2, 0]}
+				position={[props.position, 0, 0]}
 			>
-				<mesh>
+				<mesh position={[0, props.value / 2, 0]}>
 					<planeGeometry args={[0.9, props.value]} />
 					<meshBasicMaterial toneMapped={false} color={barColor(props)} />
 				</mesh>
 				<Text
-					position={[0, props.value / 2 - 0.1, 0]}
+					position={[0, props.value - 0.1, 0]}
 					fontSize={0.5}
 					anchorY='top'
 					color={labelColor(props)}

@@ -8,19 +8,30 @@ import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
 
 import { useApplicationStore } from '../../state/useApplicationStore.ts';
-import { type SortingList } from '../../state/SortingList.ts';
+import { type SortingElement, type SortingList } from '../../state/SortingList.ts';
 import ExecutionCheckpoint, { type ExecutionHistory } from '../../state/ExecutionCheckpoint.ts';
 
 import { type CodeAnalysisResult, type SortingListComparison } from '../../code-analysis/codeAnalysis.ts';
 
 import { Bar } from './Bar.tsx';
 
+type Bounds = {
+	minimum: number,
+	maximum: number
+};
+
 type MountedBars = {
-	[identifier: number]: THREE.Mesh
+	[identifier: number]: THREE.Group
+};
+
+type Position = {
+	x: number,
+	y: number,
+	z: number
 };
 
 type TargetPositions = {
-	[identifier: number]: number
+	[identifier: number]: Position
 };
 
 type ActiveSortingListComparison = {
@@ -39,16 +50,16 @@ export function BarsSortingScene() {
 		[ActiveSortingListComparison, React.Dispatch<React.SetStateAction<ActiveSortingListComparison>>] =
 			useState<ActiveSortingListComparison>(null);
 
-	const bounds = determineBounds(sortingList);
+	const bounds: Bounds | null = determineBounds(sortingList);
 
 	const mountedBarsRef: RefObject<MountedBars> = useRef({});
 	const targetPositionsRef: RefObject<TargetPositions> = useRef({});
 
-	const registerBar = useCallback((identifier: number, barMesh: THREE.Mesh) => {
-		if (barMesh === null) {
+	const registerBar = useCallback((identifier: number, barGroup: THREE.Group) => {
+		if (barGroup === null) {
 			delete mountedBarsRef.current[identifier];
 		} else {
-			mountedBarsRef.current[identifier] = barMesh;
+			mountedBarsRef.current[identifier] = barGroup;
 		}
 	}, []);
 
@@ -74,10 +85,17 @@ export function BarsSortingScene() {
 					mountedBarsRef.current[identifier].visible = false;
 				}
 
-				executionHistory[executionHistoryPosition - 1].sortingList.forEach(
+				const executionCheckpoint: ExecutionCheckpoint =
+					executionHistory[executionHistoryPosition - 1];
+
+				executionCheckpoint.sortingList.forEach(
 					(element: SortingElement, index: number) => {
 						mountedBarsRef.current[element.identifier].visible = true;
-						targetPositionsRef.current[element.identifier] = index;
+						targetPositionsRef.current[element.identifier] = {
+							x: index,
+							y: executionCheckpoint.sortingElementLevels[index],
+							z: 0
+						};
 					}
 				);
 
@@ -111,7 +129,11 @@ export function BarsSortingScene() {
 					if (element.identifier in mountedBarsRef.current) {
 						mountedBarsRef.current[element.identifier].visible = true;
 					}
-					targetPositionsRef.current[element.identifier] = index;
+					targetPositionsRef.current[element.identifier] = {
+						x: index,
+						y: 0,
+						z: 0
+					};
 				});
 			}
 		);
@@ -122,39 +144,43 @@ export function BarsSortingScene() {
 		const alpha = 1 - Math.exp(-8 * delta);
 
 		for (const identifier in targetPositionsRef.current) {
-			const barMesh = mountedBarsRef.current[identifier];
+			const barGroup = mountedBarsRef.current[identifier];
 			const targetPosition = targetPositionsRef.current[identifier];
 
-			if (barMesh == null) {
+			if (barGroup == null) {
 				delete mountedBarsRef.current[identifier];
 				delete targetPositionsRef.current[identifier];
 				continue;
 			}
 
-			if (Math.abs(targetPosition - barMesh.position.x) < STABILIZATION_THRESHOLD) {
-				barMesh.position.x = targetPosition;
+			if (
+				Math.abs(targetPosition.x - barGroup.position.x) < STABILIZATION_THRESHOLD &&
+				Math.abs(targetPosition.y - barGroup.position.y) < STABILIZATION_THRESHOLD &&
+				Math.abs(targetPosition.z - barGroup.position.z) < STABILIZATION_THRESHOLD
+			) {
+				barGroup.position.x = targetPosition.x;
+				barGroup.position.y = targetPosition.y;
+				barGroup.position.z = targetPosition.z;
 				delete targetPositionsRef.current[identifier];
 			} else {
-				barMesh.position.x = THREE.MathUtils.lerp(
-					barMesh.position.x,
-					targetPosition,
-					alpha
-				);
+				barGroup.position.x = THREE.MathUtils.lerp(barGroup.position.x, targetPosition.x, alpha);
+				barGroup.position.y = THREE.MathUtils.lerp(barGroup.position.y, targetPosition.y, alpha);
+				barGroup.position.z = THREE.MathUtils.lerp(barGroup.position.z, targetPosition.z, alpha);
 			}
 		}
 	});
 
-	return (
+	return bounds == null ? null : (
 		<group>
 			{sortingList.map((element, index) =>
 				<Bar
-					ref={(barMesh: THREE.Mesh) => {
-						registerBar(element.identifier, barMesh);
+					ref={(barGroup: THREE.Group) => {
+						registerBar(element.identifier, barGroup);
 					}}
 
 					key={element.identifier}
 					position={index}
-					value={element.value}
+					value={element.value as number}
 					minimumValue={bounds.minimum}
 					maximumValue={bounds.maximum}
 					focused={
@@ -170,20 +196,30 @@ export function BarsSortingScene() {
 	)
 }
 
-function determineBounds(sortingList: SortingList) {
+function determineBounds(sortingList: SortingList): Bounds | null {
 	if (sortingList.length === 0) {
 		return { minimum : 0 , maximum : 0 };
 	}
 
-	let minimum: number = sortingList[0].value;
-	let maximum: number = sortingList[0].value;
+	if (!Number.isFinite(sortingList[0].value)) {
+		return null;
+	}
+
+	let minimum: number = sortingList[0].value as number;
+	let maximum: number = sortingList[0].value as number;
 
 	for (const element of sortingList) {
-		if (element.value < minimum) {
-			minimum = element.value;
+		if (!Number.isFinite(element.value)) {
+			return null;
 		}
-		if (element.value > maximum) {
-			maximum = element.value;
+
+		const value: number = element.value as number;
+
+		if (value < minimum) {
+			minimum = value;
+		}
+		if (value > maximum) {
+			maximum = value;
 		}
 	}
 
