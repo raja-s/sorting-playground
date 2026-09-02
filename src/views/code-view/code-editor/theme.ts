@@ -73,7 +73,7 @@ export function getCodeEditorTheme(
 			backgroundColor: 'transparent'
 		},
 		'& .cm-simulationAnnotation > span': {
-			color: '#18a85e'
+			color: muiTheme.palette.primary.main
 		},
 		'& .cm-simulationAnnotation > .cm-matchingBracket > span': {
 			color: '#009046'

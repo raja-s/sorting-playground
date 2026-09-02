@@ -71,6 +71,7 @@ export function ControlBar() {
 	const generateShareLink = useApplicationStore(state => state.generateShareLink);
 
 	const [ shareLinkCopiedSnackbarOpen, setShareLinkCopiedSnackbarOpen ] = useState(false);
+	const [ cardsUnderDevelopmentSnackbarOpen, setCardsUnderDevelopmentSnackbarOpen ] = useState(false);
 
 	useHotkeys('mod+o', async (event) => {
 		event.preventDefault();
@@ -105,6 +106,7 @@ export function ControlBar() {
 			sx={{ height: '80px' }}
 		>
 			<Stack
+				data-guided-tour-target-element='control-bar'
 				height='100%'
 				padding='10px'
 				direction='row'
@@ -149,7 +151,7 @@ export function ControlBar() {
 					<Snackbar
 						open={shareLinkCopiedSnackbarOpen}
 						anchorOrigin={{ vertical: 'top', horizontal: 'right' }}
-						autoHideDuration={3000}
+						autoHideDuration={4000}
 						onClose={() => { setShareLinkCopiedSnackbarOpen(false); }}
 					>
 						<Alert
@@ -267,8 +269,25 @@ export function ControlBar() {
 						value='bars'
 					>
 						<MenuItem value='bars'>{translate('control_bar.sorting_element_type_dropdown.bars')}</MenuItem>
-						<MenuItem value='cards'>{translate('control_bar.sorting_element_type_dropdown.cards')}</MenuItem>
+						<MenuItem
+							value='cards'
+							onClick={() => { setCardsUnderDevelopmentSnackbarOpen(true); }}
+						>{translate('control_bar.sorting_element_type_dropdown.cards')}</MenuItem>
 					</Select>
+					{/* ---------------------------------------------------- */}
+					{/* Remove once cards sorting scene development complete */}
+					<Snackbar
+						open={cardsUnderDevelopmentSnackbarOpen}
+						anchorOrigin={{ vertical: 'top', horizontal: 'right' }}
+						autoHideDuration={5000}
+						onClose={() => { setCardsUnderDevelopmentSnackbarOpen(false); }}
+					>
+						<Alert
+							severity='info'
+							variant='filled'
+						>{translate('control_bar.sorting_element_type_dropdown.cards_under_development_message')}</Alert>
+					</Snackbar>
+					{/* ---------------------------------------------------- */}
 					<FormControlLabel
 						label={translate('control_bar.sorting_element_type_specific_controls.bar_controls.colored')}
 						control={

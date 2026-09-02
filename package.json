@@ -26,6 +26,7 @@
     "@uiw/react-codemirror": "^4.25.4",
     "browser-fs-access": "^0.38.0",
     "fflate": "^0.8.2",
+    "framer-motion": "^13.1.1",
     "i18next": "^25.8.13",
     "i18next-browser-languagedetector": "^8.2.1",
     "i18next-http-backend": "^3.0.2",

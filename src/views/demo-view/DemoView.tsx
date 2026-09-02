@@ -24,7 +24,10 @@ export function DemoView() {
 			size={6}
 			sx={{ backgroundColor: '#f8faff' }}
 		>
-			<Canvas orthographic>
+			<Canvas
+				data-guided-tour-target-element='demo-view'
+				orthographic
+			>
 				<Suspense fallback={null}>
 					<SmoothCamera
 						sceneGroupRef={sceneGroupRef}

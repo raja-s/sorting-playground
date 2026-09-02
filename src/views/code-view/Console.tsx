@@ -9,8 +9,16 @@ export default function Console() {
 	const consoleContent = useApplicationStore(state => state.consoleContent);
 	const pythonCodeAnalysisResult = useApplicationStore(state => state.pythonCodeAnalysisResult);
 
+	if (consoleContent.length === 0) {
+		return null;
+	}
+
 	return (
-		<Box>
+		<Box
+			padding={2}
+			backgroundColor='#f8faff'
+			borderRadius='15px'
+		>
 			{consoleContent.map((content, index) =>
 				<Typography
 					key={index}

@@ -121,6 +121,7 @@ ${translate('code.to_do_comment')}
 
 	return (
 		<CodeMirrorEditor
+			data-guided-tour-target-element='code-editor'
 			onCreateEditor={view => {
 				editorViewRef.current = view;
 				bumpEditorReloadCodeTriggerValue();
