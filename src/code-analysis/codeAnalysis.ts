@@ -1,5 +1,10 @@
 
-import { type ASTNodeUnion, type Assign, parse } from 'py-ast';
+import {
+	type ASTNodeUnion,
+	type Assign,
+	type Module,
+	parse
+} from 'py-ast';
 
 import SourceCode from './SourceCode.ts';
 
@@ -135,12 +140,12 @@ class PythonCodeAnalyzer extends BaseNodeVisitor {
 		}
 	}
 
-	visit(node: ASTNodeUnion): void {
+	override visit(node: ASTNodeUnion): void {
 		const lineNumber: number = node.lineno as number
-		if (!(lineNumber in this.trackedVariableMap)) {
+		if (lineNumber != null && !(lineNumber in this.trackedVariableMap)) {
 			this.trackedVariableMap[lineNumber] = this.trackedVariablesStackHead().slice();
 		}
-		if (!(lineNumber in this.visualizedVariableMap)) {
+		if (lineNumber != null && !(lineNumber in this.visualizedVariableMap)) {
 			this.visualizedVariableMap[lineNumber] = this.visualizedVariablesStackHead().slice();
 		}
 
@@ -158,7 +163,13 @@ class PythonCodeAnalyzer extends BaseNodeVisitor {
 		super.visit(node);
 	}
 
-	visitAssign(assignNode: Assign): void {
+	override visitModule(moduleNode: Module): void {
+		this.genericVisit(moduleNode);
+		this.trackedVariableMap[-1] = this.trackedVariablesStackHead().slice();
+		this.visualizedVariableMap[-1] = this.visualizedVariablesStackHead().slice();
+	}
+
+	override visitAssign(assignNode: Assign): void {
 		const eligibleVariableNodes: ASTNodeUnion[] =
 			flattenTuplesAmongNames(assignNode.targets)
 				.filter((node: ASTNodeUnion) => node.id !== this.sortingListVariableName);
@@ -181,11 +192,11 @@ class PythonCodeAnalyzer extends BaseNodeVisitor {
 		this.genericVisit(assignNode);
 	}
 
-	visitAnnAssign(assignNode: Assign): void {
+	override visitAnnAssign(assignNode: Assign): void {
 		this.visitAssign(assignNode);
 	}
 
-	visitFor(forNode: ASTNodeUnion): void {
+	override visitFor(forNode: ASTNodeUnion): void {
 		const variableNodes: ASTNodeUnion[] = flattenTuplesAmongNames([ forNode.target ]);
 
 		this.trackedVariablesStackHead().push(
@@ -206,7 +217,7 @@ class PythonCodeAnalyzer extends BaseNodeVisitor {
 		this.genericVisit(forNode);
 	}
 
-	visitClassDef(classNode: ASTNodeUnion): void {
+	override visitClassDef(classNode: ASTNodeUnion): void {
 		const previousQualifiedNamePrefix: string = this.qualifiedNamePrefix;
 		this.qualifiedNamePrefix += `${classNode.name}.`;
 
@@ -215,7 +226,7 @@ class PythonCodeAnalyzer extends BaseNodeVisitor {
 		this.qualifiedNamePrefix = previousQualifiedNamePrefix;
 	}
 
-	visitFunctionDef(functionNode: ASTNodeUnion): void {
+	override visitFunctionDef(functionNode: ASTNodeUnion): void {
 		const functionObject: Function = this.createFunction(functionNode);
 
 		this.functions[functionObject.identifier] = functionObject;
@@ -255,7 +266,7 @@ class PythonCodeAnalyzer extends BaseNodeVisitor {
 	/**
 	 * WARNING: `ifNode` could also be the if of an elif.
      */
-	visitIf(ifNode: ASTNodeUnion): void {
+	override visitIf(ifNode: ASTNodeUnion): void {
 		const lineNumber: number = ifNode.lineno as number;
 
 		this.addSortingListComparison(ifNode);

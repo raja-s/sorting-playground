@@ -24,15 +24,6 @@ export default function SortingIndices() {
 	let executionCheckpoint: ExecutionCheckpoint =
 		executionHistory[Math.max(executionHistoryPosition - 1, 0)];
 
-	if (executionCheckpoint.lineRange == null) {
-		if (executionHistoryPosition < 2) {
-			return null;
-		} else {
-			executionCheckpoint = executionHistory[executionHistoryPosition - 2];
-		}
-	}
-
-
 	const configuration: VisualizedVariablesConfiguration = pythonCodeAnalysisResult.visualizedVariablesConfiguration;
 
 	const variableCount: number = configuration.variableCount;
@@ -46,7 +37,7 @@ export default function SortingIndices() {
 			</mesh>
 			{
 				executionCheckpoint.squashExecutionStack().flatMap((checkpoint: ExecutionCheckpoint) =>
-					pythonCodeAnalysisResult.visualizedVariableMap[checkpoint.lineRange.start]
+					pythonCodeAnalysisResult.visualizedVariableMap[checkpoint.lineRange?.start || -1]
 						.filter((variable: Variable) => variable.identifier in configuration.levelDistribution)
 						.map((variable: Variable) =>
 							<SortingIndex

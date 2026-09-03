@@ -224,9 +224,7 @@ function handleExecutionUpdate(
 		editorView,
 		activePythonCode,
 		pythonCodeAnalysisResult,
-		executionCheckpoint,
-		executionHistory,
-		executionHistoryPosition
+		executionCheckpoint
 	);
 
 	const transaction = editorView.state.update({ changes: executionAnnotationsChanges });
@@ -261,9 +259,7 @@ function getExecutionAnnotationsChanges(
 	editorView: EditorView,
 	activePythonCode: string,
 	pythonCodeAnalysisResult: CodeAnalysisResult,
-	executionCheckpoint: ExecutionCheckpoint,
-	executionHistory: ExecutionHistory,
-	executionHistoryPosition: number
+	executionCheckpoint: ExecutionCheckpoint
 ): ChangeSpec {
 	const resetChange = editorView.state.changes({
 		from: 0,
@@ -273,20 +269,10 @@ function getExecutionAnnotationsChanges(
 
 	const cleanState = EditorState.create({ doc: activePythonCode });
 
-	let effectiveCheckpoint: ExecutionCheckpoint = executionCheckpoint;
-
-	if (executionCheckpoint.lineRange == null) {
-		if (executionHistoryPosition < 2) {
-			return resetChange;
-		} else {
-			effectiveCheckpoint = executionHistory[executionHistoryPosition - 2];
-		}
-	}
-
 	const annotationChanges =
 		cleanState.changes(
-			effectiveCheckpoint.squashExecutionStack().flatMap((checkpoint: ExecutionCheckpoint) =>
-				pythonCodeAnalysisResult.trackedVariableMap[checkpoint.lineRange.start]
+			executionCheckpoint.squashExecutionStack().flatMap((checkpoint: ExecutionCheckpoint) =>
+				pythonCodeAnalysisResult.trackedVariableMap[checkpoint.lineRange?.start || -1]
 					.map((variable: Variable) => ({
 						from: cleanState.doc.line(variable.definitionLineRange.end).to,
 						insert: ` # ${variable.name} = ${
