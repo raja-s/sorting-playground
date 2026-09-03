@@ -82,6 +82,7 @@ type LineNumberSimulationAnnotationMapping = {
 
 const SAVE_EXECUTION_CHECKOINT_NODE_TYPES = new Set([
 	'Assign',
+	'AugAssign',
 	'For',
 	'While',
 	'If',
