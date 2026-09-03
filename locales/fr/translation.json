@@ -1,4 +1,64 @@
 {
+	"splash_dialog": {
+		"welcome_message": "Bienvenue au...",
+		"presentation_message": "Un environnement pédagogique d'expérimentation conçu pour les étudiant·e·s apprenant les algorithmes de tri.",
+		"disclaimer_message": "Toutes exécution de code et visualisation de tri sont effectuées entièrement localement. L'application utilise seulement le stockage local du navigateur pour persister les paramètres de la barre de contrôle et des information similaires, uniquement par commodité.",
+		"guided_tour_button": "Visite Guidée",
+		"playground_button": "Playground"
+	},
+	"guided_tour": {
+		"steps": {
+			"code_editor": {
+				"title": "Éditeur de code",
+				"explanation": "C'est là où vous écrivez votre code Python. Votre objectif est d'implémenter un algorithme qui trie une liste simple."
+			},
+			"demo_view": {
+				"title": "Vue démo",
+				"explanation": "C'est une visualisation en direct de la liste à trier. Quand vous lancez l'exécution, les choses bougent ici en temps réel pendant que votre implémentation modifie la liste."
+			},
+			"control_bar": {
+				"title": "Barre de contrôle",
+				"explanation": "C'est ici que vous configurez et contrôlez l'environnement. Vous pouvez également ouvrir un script Python depuis votre appareil ou sauvegarder le code dans l'éditeur sur votre appareil. Le bouton \"Partager\" copie dans le presse-papiers un lien partageable vers votre implémentation exacte ainsi que vos paramètres dans la barre de contrôle."
+			},
+			"list_annotation": {
+				"title": "Annotations spéciales",
+				"explanation": "Dans cet environnement d'expérimentation, vous utilisez des annotations spéciales (toutes de la forme #...#) pour configurer la visualisation. Par exemple, celle-ci indique à l'environnement que c'est cette variable qui contient la liste à trier. Attention à ne pas l'enlever !"
+			},
+			"annotation_reference_button": {
+				"title": "Référence des annotations",
+				"explanation": "La référence complète des annotations disponibles dans cet environnement d'expérimentation peut être consultée à tout moment en cliquant sur ce bouton."
+			},
+			"guided_tour_button": {
+				"title": "Visite guidée",
+				"explanation": "Et vous pouvez relancer cette visite guidée à tout moment en cliquant sur ce bouton."
+			}
+		},
+		"leave_button": "Quitter la visite guidée",
+		"previous_button": "Précédent",
+		"next_button": "Suivant",
+		"finish_button": "Terminer"
+	},
+	"annotation_reference": {
+		"title": "Référence des annotations",
+		"general_explanation": "Les annotations dans sorting-playground vous permettent de configurer la visualisation, mais aussi et d'une manière limitée l'exécution de code. Les annotations sont enlevées durant l'exécution de code et réinstaurées lorsqu'elle est complètement arrêtée. Vous trouverez ci-dessous une explication détaillée de chaque annotation.",
+		"advanced_annotations_label": "Annotations avancées",
+		"annotation_explanations": {
+			"list": "L'annotation <name>list</name> est la plus basique et la plus importante de toutes. Elle doit être placée près de la variable contenant la liste à trier et à visualiser.",
+			"track": "L'annotation <name>track</name> est utilisée pour suivre le contenu d'une variable en cous d'exécution. Elle doit être placée sur une ligne où des variables sont déclarées (p. ex. affectation de variable ou en-tête de boucle for). Durant l'exécution, dès que les variables sont initialisées, un commentaire montrant leurs valeurs sera ajouté à cette ligne, et il sera mis à jour en temps réel lorsque ces valeurs changent.",
+			"visualize": "L'annotation <name>visualize</name> est utilisée pour visualiser en temps réel une variable représentant un indice dans la liste à trier. Elle doit être placée sur une ligne où des variables sont déclarées (p. ex. affectation de variable ou en-tête de boucle for). Durant l'exécution, dès que les variables sont initialisées, des pointeurs seront générés aux positions correspondantes sous les éléments de la liste dans la vue démo, avec les noms et les valeurs des variables, et ils se déplaceront en temps réel lorsque ces valeurs changent.",
+			"skip": "L'annotation <name>skip</name> est utilisée pour ignorer certaines instructions ou blocs de code lorsqu'on fait tourner manuellement le code pas à pas. Ceci ne veut pas dire que le code ignoré n'exécute pas, mais simplement que l'exécution ne s'arrêtera pas à ce code lorsqu'on avance ou on recule d'une instruction. Placer l'annotation sur l'en-tête d'un bloc de code (p. ex. l'en-tête d'une fonction ou d'une boucle for) revient à ignorer ce bloc en entier et tout code atteint indirectement depuis ce dernier.",
+			"combined_annotations": "Les annotations peuvent être combinées, comme dans cet exemple avec les annotations <name>track</name> et <name>visualize</name>, ce qui fait que les variables vont être à la fois suivies et visualisées.",
+			"track_with_variable_names": "L'annotation <name>track</name> peut prendre des arguments représentant les variables spécifiques à suivre.<break/>Dans cet exemple, en supposant que l'annotation est placée sur une ligne où des variables <code>x</code>, <code>y</code> et <code>z</code> sont définies, seulement <code>x</code> et <code>z</code> seront suivies.",
+			"visualize_with_level": "L'annotation <name>visualize</name> peut prendre un seul argument représentant le niveau sur lequel la variable serait visualisée. Par défaut, les variables visualisées sont réparties sur différents niveaux selon le principe du premier arrivé, premier servi. Cette annotation permet de visualiser une variable sur un niveau spécifique.<break/>Dans cet exemple, la variable visualisée sera placée sur le deuxième niveau sous les éléments de la liste dans la vue démo.",
+			"visualize_with_variable_level_mapping": "L'annotation <name>visualize</name> peut aussi prendre des arguments représentant une répartition de variables sur des niveaux (voir l'explication d'annotation précédente).<break/>Dans cet exemple, en supposant que l'annotation est placée sur une ligne où des variables <code>x</code>, <code>y</code> et <code>z</code> sont définies, <code>x</code> sera visualisée sur le deuxième niveau et <code>y</code> sur le premier, tandis que <code>z</code> ne sera pas visualisée.",
+			"divide": "L'annotation <name>divide</name> est utilisée dans des implémentations d'algorithmes de tri sur place récursifs où les appels récursifs manipulent des parties de plus en plus petites de la liste à trier. Durant l'exécution et au sein de chaque tel appel récursif, la vue démo mettra en évidence la partie de la liste manipulée par cet appel en la baissant légèrement et en grisant partiellement le reste de la liste. L'annotation doit être placée sur l'en-tête de la fonction. Elle prend un argument qui consiste des deux paramètres de la fonction (séparés par un <code>-</code>) représentant l'intervalle (indices, les deux inclus) de la liste qui est manipulé par la fonction récursive.<break/>Dans cet exemple, en supposant que l'annotation est placée sur une fonction récursive qui prend des paramètres <code>k</code> et <code>l</code>, la vue démo mettra en évidence la partie de la liste allant de <code>k</code> à <code>l</code> (les deux inclus).",
+			"divide_multiple_ranges": "Pour des fonctions récursives plus complexes qui manipulent des parties non-contigües de la liste à trier, l'annotation <name>divide</name> peut prendre plusieurs intervalles comme arguments (voir l'explication d'annotation précédente).<break/>Dans cet exemple, en supposant que l'annotation est placée sur une fonction récursive qui prend des paramètres <code>k</code>, <code>l</code>, <code>m</code> et <code>n</code>, la vue démo mettra en évidence la partie de la liste allant de <code>k</code> à <code>l</code> (les deux inclus) ainsi que celle allant de <code>m</code> à <code>n</code> (les deux inclus)."
+		}
+	},
+	"top_buttons": {
+		"guided_tour": "Visite guidée",
+		"annotation_reference": "Référence des annotations"
+	},
 	"code": {
 		"starting_list_variable_name": "valeurs",
 		"to_do_comment": "# Trier la liste ici..."
@@ -23,7 +83,8 @@
 		},
 		"sorting_element_type_dropdown": {
 			"bars": "Barres",
-			"cards": "Cartes"
+			"cards": "Cartes",
+			"cards_under_development_message": "La visualisation de cartes est en cours de développement."
 		},
 		"sorting_element_type_specific_controls": {
 			"bar_controls": {

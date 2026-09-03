@@ -1,4 +1,64 @@
 {
+	"splash_dialog": {
+		"welcome_message": "Welcome to...",
+		"presentation_message": "An educational sandbox environment designed for students learning sorting algorithms.",
+		"disclaimer_message": "All code execution and sorting visualization happen entirely locally. The app only uses the browser's local storage to persist control bar settings and similar information, purely for convenience.",
+		"guided_tour_button": "Guided Tour",
+		"playground_button": "Playground"
+	},
+	"guided_tour": {
+		"steps": {
+			"code_editor": {
+				"title": "Code Editor",
+				"explanation": "This is where you write your Python code. Your goal is to implement an algorithm that sorts a simple list."
+			},
+			"demo_view": {
+				"title": "Demo View",
+				"explanation": "This is a live visualization of the list to be sorted. When you start the execution, things start moving here in real time as your implementation modifies the list."
+			},
+			"control_bar": {
+				"title": "Control Bar",
+				"explanation": "This is where you configure and control the environment. You can also open a Python script from your device or save the code in the editor to your device. The \"Share\" button copies to your clipboard a sharable link to your exact implementation and control bar settings."
+			},
+			"list_annotation": {
+				"title": "Special Annotations",
+				"explanation": "In this playground environment, you use special annotations (all in the form #...#) to configure the visualization. For example, this one tells the environment that this is the variable holding the list to be sorted and visualized. Careful not to remove it!"
+			},
+			"annotation_reference_button": {
+				"title": "Annotation Reference",
+				"explanation": "The complete reference of annotations available in this playground environment can be consulted at any time by clicking on this button."
+			},
+			"guided_tour_button": {
+				"title": "Guided Tour",
+				"explanation": "And you can rerun this guided tour at any time by clicking on this button."
+			}
+		},
+		"leave_button": "Leave Guided Tour",
+		"previous_button": "Back",
+		"next_button": "Next",
+		"finish_button": "Finish"
+	},
+	"annotation_reference": {
+		"title": "Annotation Reference",
+		"general_explanation": "Annotations in sorting-playground allow you to configure the visualization, but also and to a limited extent the code execution. Annotations are removed during code execution and restored when it is fully stopped. Below is a detailed explanation of each annotation.",
+		"advanced_annotations_label": "Advanced Annotations",
+		"annotation_explanations": {
+			"list": "The <name>list</name> annotation is the most basic and important of all. It must be placed next to the variable holding the list to be sorted and visualized.",
+			"track": "The <name>track</name> annotation is used to track the content of a variable at runtime. It must be placed on a line where variables are declared (e.g. variable assignment or for-loop header). During execution, as soon as the variables are initialized, a comment showing their values will be added on that line, and it will update in real time as those values change.",
+			"visualize": "The <name>visualize</name> annotation is used to visualize in real time a variable representing an index in the list to be sorted. It must be placed on a line where variables are declared (e.g. variable assignment or for-loop header). During execution, as soon as the variables are initialized, pointers will be rendered at the corresponding positions below the list elements in the demo view, with the names and values of the variables, and they will move around in real time as those values change.",
+			"skip": "The <name>skip</name> annotation is used to skip certain instructions or code blocks when manually stepping through the code. This does not mean that skipped code does not execute, but simply that the execution will not pause at that code when stepping forward or backward. Placing the annotation on a code block header (e.g. function header or for-loop header) will skip that entire block and any code indirectly reached from within it.",
+			"combined_annotations": "Annotations can be combined, such as in this example with the <name>track</name> and <name>visualize</name> annotations, resulting in variables being both tracked and visualized.",
+			"track_with_variable_names": "The <name>track</name> annotation can take arguments representing the specific variables to track.<break/>In this example, assuming the annotation is placed on a line where three variables <code>x</code>, <code>y</code> and <code>z</code> are defined, only <code>x</code> and <code>z</code> will be tracked.",
+			"visualize_with_level": "The <name>visualize</name> annotation can take a single argument representing the level on which to visualize the variable. By default, visualized variables are laid out on different levels on a first-come, first-served basis. This annotation allows visualizing a variable on an specific level.<break/>In this example, the visualized variable will be placed on the second level below the list elements in the demo view.",
+			"visualize_with_variable_level_mapping": "The <name>visualize</name> annotation can also take arguments representing a mapping from variables to levels (see previous annotation explanation).<break/>In this example, assuming the annotation is placed on a line where three variables <code>x</code>, <code>y</code> and <code>z</code> are defined, <code>x</code> will be visualized on the second level and <code>y</code> on the first, whereas <code>z</code> will not be visualized.",
+			"divide": "The <name>divide</name> annotation is used in implementations of recursive in-place sorting algorithms where recursive calls manipulate smaller and smaller parts of the list to be sorted. During execution and within every such recursive call, the demo view will emphasize the part of the list being manipulated by that call by slightly lowering it and partially greying out the rest of the list. The annotation must be placed on the function header. It takes an argument consisting of the two function parameters (separated by a <code>-</code>) representing the range (indices, both included) of the list that is manipulated by the recursive function.<break/>In this example, assuming the annotation is placed on a recursive function that takes parameters <code>k</code> and <code>l</code>, the demo view will emphasize the part of the list from <code>k</code> to <code>l</code> (both included).",
+			"divide_multiple_ranges": "For more complex recursive functions that manipulate non-contiguous parts of the list to be sorted, the <name>divide</name> annotation can take multiple ranges as arguments (see previous annotation explanation).<break/>In this example, assuming the annotation is placed on a recursive function that takes parameters <code>k</code>, <code>l</code>, <code>m</code> and <code>n</code>, the demo view will emphasize the part of the list from <code>k</code> to <code>l</code> (both included) as well as the one from <code>m</code> to <code>n</code> (both included)."
+		}
+	},
+	"top_buttons": {
+		"guided_tour": "Guided Tour",
+		"annotation_reference": "Annotation Reference"
+	},
 	"code": {
 		"starting_list_variable_name": "values",
 		"to_do_comment": "# Sort the list here..."
@@ -23,7 +83,8 @@
 		},
 		"sorting_element_type_dropdown": {
 			"bars": "Bars",
-			"cards": "Cards"
+			"cards": "Cards",
+			"cards_under_development_message": "The cards visualization is under development."
 		},
 		"sorting_element_type_specific_controls": {
 			"bar_controls": {
