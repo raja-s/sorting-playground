@@ -166,6 +166,13 @@ class PythonCodeAnalyzer extends BaseNodeVisitor {
 			this.visualizedVariableMap[lineNumber] = this.visualizedVariablesStackHead().slice();
 		}
 
+		const previousSyncWithControllerOnCheckpoints: boolean =
+			this.syncWithControllerOnCheckpoints;
+
+		if (this.nodeHasModifier(node, 'skip')) {
+			this.syncWithControllerOnCheckpoints = false;
+		}
+
 		if (SAVE_EXECUTION_CHECKOINT_NODE_TYPES.has(node.nodeType) && !node.isElif) {
 			const endLineNumber: number = CODE_BLOCK_NODE_TYPES.has(node.nodeType) ?
 				node.codeBlockHeaderEnd.lineNumber : node.end_lineno as number;
@@ -175,12 +182,13 @@ class PythonCodeAnalyzer extends BaseNodeVisitor {
 					start: lineNumber,
 					end: endLineNumber
 				},
-				syncWithController:
-					this.syncWithControllerOnCheckpoints && !this.nodeHasModifier(node, 'skip')
+				syncWithController: this.syncWithControllerOnCheckpoints
 			};
 		}
 
 		super.visit(node);
+
+		this.syncWithControllerOnCheckpoints = previousSyncWithControllerOnCheckpoints;
 	}
 
 	visitModule(moduleNode: Module): void {
@@ -268,16 +276,8 @@ class PythonCodeAnalyzer extends BaseNodeVisitor {
 		const previousQualifiedNamePrefix: string = this.qualifiedNamePrefix;
 		this.qualifiedNamePrefix += `${functionNode.name}.<locals>.`;
 
-		const previousSyncWithControllerOnCheckpoints: boolean =
-			this.syncWithControllerOnCheckpoints;
-
-		if (this.nodeHasModifier(functionNode, 'skip')) {
-			this.syncWithControllerOnCheckpoints = false;
-		}
-
 		this.genericVisit(functionNode);
 
-		this.syncWithControllerOnCheckpoints = previousSyncWithControllerOnCheckpoints;
 		this.qualifiedNamePrefix = previousQualifiedNamePrefix;
 		this.trackedVariablesStack.pop();
 		this.visualizedVariablesStack.pop();
@@ -514,7 +514,10 @@ class PythonCodeAnalyzer extends BaseNodeVisitor {
 	}
 
 	private getAnnotationOnNode(node: ASTNodeUnion): SimulationAnnotation | null {
-		for (let i = node.lineno as number ; i <= (node.end_lineno as number) ; i++) {
+		const endLineNumber: number = CODE_BLOCK_NODE_TYPES.has(node.nodeType) ?
+			node.codeBlockHeaderEnd.lineNumber : node.end_lineno as number;
+
+		for (let i = node.lineno as number ; i <= endLineNumber ; i++) {
 			if (i in this.lineNumberSimulationAnnotationMapping) {
 				return this.lineNumberSimulationAnnotationMapping[i];
 			}
