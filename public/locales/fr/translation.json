@@ -4,7 +4,7 @@
 		"presentation_message": "Un environnement pédagogique d'expérimentation conçu pour les étudiant·e·s apprenant les algorithmes de tri.",
 		"disclaimer_message": "Toutes exécution de code et visualisation de tri sont effectuées entièrement localement. L'application utilise seulement le stockage local du navigateur pour persister les paramètres de la barre de contrôle et des information similaires, uniquement par commodité.",
 		"guided_tour_button": "Visite Guidée",
-		"playground_button": "Playground"
+		"playground_button": "Démarrer"
 	},
 	"guided_tour": {
 		"steps": {

@@ -34,10 +34,10 @@ const LOGO_SLIDE_DELAY = 200;
 const LOGO_SLIDE_DURATION = 200;
 
 export default function SplashDialogAndTopLogo(props: SplashDialogAndTopLogoProps) {
-	const translate = useTranslation().t;
+	const { t: translate, i18n } = useTranslation();
 
 	const [ splashDialogIsOpen, setSplashDialogIsOpen ] =
-		useState<boolean>(() => checkAndRefreshSplashDialogTimeout());
+		useState<boolean>(() => checkAndRefreshSplashDialogTimeout(i18n.language));
 	const [ topLogoState, setTopLogoState ] = useState<TopLogoState>({
 		isOpen: false,
 		counter: 0
@@ -170,15 +170,16 @@ export default function SplashDialogAndTopLogo(props: SplashDialogAndTopLogoProp
 	);
 }
 
-function checkAndRefreshSplashDialogTimeout(): boolean {
+function checkAndRefreshSplashDialogTimeout(languageCode: string): boolean {
 	const now = Date.now();
-	const expiryString = localStorage.getItem(SPLASH_DIALOG_STORAGE_KEY);
+	const storageKey = `${SPLASH_DIALOG_STORAGE_KEY}:${languageCode}`;
+	const expiryString = localStorage.getItem(storageKey);
 
 	const showSplashDialog =
 		expiryString == null || now >= parseInt(expiryString, 10);
 
 	const newExpiryTime = now + SPLASH_DIALOG_TIMEOUT;
-	localStorage.setItem(SPLASH_DIALOG_STORAGE_KEY, newExpiryTime.toString());
+	localStorage.setItem(storageKey, newExpiryTime.toString());
 
 	return showSplashDialog;
 }
