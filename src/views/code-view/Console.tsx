@@ -1,82 +1,124 @@
 
-import { useApplicationStore } from '../../state/useApplicationStore.ts';
-import { type CodeAnalysisResult } from '../../code-analysis/codeAnalysis.ts';
+import { useEffect, useRef } from 'react';
 
-import Box from '@mui/material/Box';
+import { useApplicationStore } from '../../state/useApplicationStore.ts';
+import {
+	type ConsoleContent,
+	type ConsoleContentType
+} from '../../state/ApplicationState.ts';
+
+import Stack from '@mui/material/Stack';
+import TextField from '@mui/material/TextField';
 import Typography from '@mui/material/Typography';
+
+const COLORS: Record<ConsoleContentType, string> = {
+	'standard_output': '#757575',
+	'line_break': '',
+	'prompt_text': '#757575',
+	'user_input': '#216bfa',
+	'error': '#d32f2f'
+};
 
 export default function Console() {
 	const consoleContent = useApplicationStore(state => state.consoleContent);
-	const pythonCodeAnalysisResult = useApplicationStore(state => state.pythonCodeAnalysisResult);
+	const executionIsWaitingForInput = useApplicationStore(state => state.executionIsWaitingForInput);
+	const submitConsoleInput = useApplicationStore(state => state.submitConsoleInput);
+	const executionHistory = useApplicationStore(state => state.executionHistory);
+	const executionHistoryPosition = useApplicationStore(state => state.executionHistoryPosition);
 
-	if (consoleContent.length === 0) {
+	const inputRef = useRef<HTMLInputElement>(null);
+
+	useEffect(() => {
+		if (executionIsWaitingForInput && inputRef.current != null) {
+			inputRef.current.focus();
+		}
+	}, [ executionIsWaitingForInput ]);
+
+	const consoleContentLines: ConsoleContent[][] = [ [] ];
+
+	for (const content of consoleContent) {
+		if (
+			content.executionHistoryPosition > executionHistoryPosition ||
+			content.executionHistoryPosition === executionHistoryPosition &&
+			content.type !== 'error' && content.type !== 'line_break' && (
+				content.type !== 'prompt_text' || executionHistory.length > executionHistoryPosition
+			)
+		) {
+			break;
+		}
+
+		if (content.type === 'line_break') {
+			consoleContentLines.push([]);
+			continue;
+		}
+
+		consoleContentLines[consoleContentLines.length - 1].push(content);
+	}
+
+	if (consoleContentLines.length === 1 && consoleContentLines[0].length === 0) {
 		return null;
 	}
 
 	return (
-		<Box
+		<Stack
 			padding={2}
-			backgroundColor='#f8faff'
 			borderRadius='15px'
+			sx={{
+				backgroundColor: '#f8faff',
+				overflowX: 'auto'
+			}}
 		>
-			{consoleContent.map((content, index) =>
-				<Typography
-					key={index}
-					sx={{ whiteSpace: 'pre' }}
-					fontFamily='"JetBrains Mono", monospace'
-					color={content.type === 'error' ? 'error' : 'secondary'}
-				>{
-					content.type === 'error' ?
-						cleanUpError(content.text, pythonCodeAnalysisResult) : content.text
-				}</Typography>
+			{consoleContentLines.map((contentLine: ConsoleContent[], lineIndex: number) =>
+				<Stack
+					key={lineIndex}
+					direction='row'
+				>
+					{contentLine.map((content: ConsoleContent, index: number) =>
+						<Typography
+							key={index}
+							sx={{ whiteSpace: 'pre' }}
+							fontFamily='"JetBrains Mono", monospace'
+							fontSize='1.2rem'
+							color={COLORS[content.type]}
+						>{content.text || '\u200B'}</Typography>
+					)}
+					{lineIndex === consoleContentLines.length - 1 && executionIsWaitingForInput && (
+						<TextField
+							variant='standard'
+							inputRef={inputRef}
+							slotProps={{
+								input: {
+									disableUnderline: true
+								}
+							}}
+							sx={{
+								flexGrow: 1,
+								border: 'none',
+								boxShadow: 'none',
+								backgroundColor: 'transparent',
+								'& .MuiInput-input': {
+									padding: 0,
+									boxShadow: 'none',
+									fontFamily: '"JetBrains Mono", monospace',
+									fontSize: '1.2rem',
+									color: COLORS['user_input'],
+									'&:focus': {
+										boxShadow: 'none'
+									}
+								}
+							}}
+							onKeyDown={event => {
+								if (event.key !== 'Enter') {
+									return;
+								}
+
+								event.preventDefault();
+								submitConsoleInput(event.target.value);
+							}}
+						/>
+					)}
+				</Stack>
 			)}
-		</Box>
+		</Stack>
 	);
-}
-
-function cleanUpError(
-	text: string,
-	pythonCodeAnalysisResult: CodeAnalysisResult
-): string {
-	const textLines: string[] = text.split('\n');
-
-	const cleanedUpErrorTextLines: string[] = [];
-
-	let skipping = false;
-
-	for (const line of textLines) {
-		if (line.startsWith('  File ')) {
-			skipping = !line.startsWith('  File "<exec>"');
-		}
-
-		if (skipping) {
-			continue;
-		}
-
-		cleanedUpErrorTextLines.push(
-			!line.startsWith('  File "<exec>"') ? line :
-				mapLineNumber(line, pythonCodeAnalysisResult)
-		);
-	}
-
-	return cleanedUpErrorTextLines.join('\n');
-}
-
-function mapLineNumber(
-	line: string,
-	pythonCodeAnalysisResult: CodeAnalysisResult
-): string {
-	const regex: RegExp = /(File "<exec>", line )(\d+)/;
-	const matches: RegExpExecArray | null = regex.exec(line);
-
-	if (matches == null) {
-		return line;
-	}
-
-	const lineNumber: number = parseInt(matches[2]);
-
-	const correctedLineNumber: number =
-		pythonCodeAnalysisResult.instrumentationResult.lineNumberMapping[lineNumber];
-
-	return line.replace(regex, `$1${correctedLineNumber}`);
 }

@@ -13,15 +13,12 @@ import SimulationAnnotation from '../code-analysis/SimulationAnnotation.ts';
 import { analyzePythonCode } from '../code-analysis/codeAnalysis.ts';
 
 import type ApplicationState from './ApplicationState.ts';
-import { type ExecutionState } from './ApplicationState.ts';
+import {
+	type ConsoleContent,
+	type ConsoleContentType,
+	type ExecutionState
+} from './ApplicationState.ts';
 import ExecutionCheckpoint from './ExecutionCheckpoint.ts';
-
-export type ConsoleContentType = 'standard_output' | 'error';
-
-export type ConsoleContent = {
-	text: string,
-	type: ConsoleContentType
-};
 
 type GetState = () => ApplicationState;
 
@@ -73,13 +70,18 @@ export const useApplicationStore =
 					},
 
 					consoleContent: [],
-					appendToConsole: (content: ConsoleContent) => {
+					appendToConsole: (content: ConsoleContent[]) => {
 						setState((state: ApplicationState) => ({
-							consoleContent: state.consoleContent.concat([ content ])
+							consoleContent: state.consoleContent.concat(content)
 						}));
+					},
+					executionIsWaitingForInput: false,
+					submitConsoleInput: (input: string) => {
+						submitConsoleInput(input, getState, setState);
 					},
 
 					pythonCodeAnalysisResult: {
+						functions: {},
 						trackedVariableMap: {},
 						visualizedVariableMap: {},
 						visualizedVariablesConfiguration: {
@@ -202,10 +204,16 @@ function initializePythonExecutionWorker(
 				handleEnvironmentInitialized(setState);
 				break;
 			case MESSAGE_TYPES.standardOutput:
-				handleStandardOutput(getState, event.data.output);
+				handleStandardOutput(event.data.output, getState);
+				break;
+			case MESSAGE_TYPES.incomingInputPrompt:
+				handleIncomingInputPrompt(event.data.prompt, getState);
+				break;
+			case MESSAGE_TYPES.waitingForInput:
+				handleExecutionWaitingForInput(setState);
 				break;
 			case MESSAGE_TYPES.errorOutput:
-				handleErrorOutput(getState, event.data.output);
+				handleErrorOutput(event.data.output, getState);
 				break;
 			case MESSAGE_TYPES.executionFinished:
 				handleExecutionFinished(setState);
@@ -216,9 +224,6 @@ function initializePythonExecutionWorker(
 					getState,
 					setState
 				);
-				break;
-			case MESSAGE_TYPES.waitingForInput:
-				handleExecutionWaitingForInput();
 				break;
 		}
 	};
@@ -231,18 +236,116 @@ function handleEnvironmentInitialized(setState: SetState) {
 	reassessReadyToExecuteCode(setState);
 }
 
-function handleStandardOutput(getState: GetState, output: string) {
-	getState().appendToConsole({
-		text: output,
-		type: 'standard_output'
-	});
+function handleStandardOutput(output: string, getState: GetState) {
+	const state: ApplicationState = getState();
+
+	if (state.executionState === 'stopped') {
+		return;
+	}
+
+	state.appendToConsole(mapTextToConsoleContent(
+		output,
+		state.executionHistoryPosition,
+		'standard_output'
+	));
 }
 
-function handleErrorOutput(getState: GetState, output: string) {
-	getState().appendToConsole({
-		text: output,
-		type: 'error'
-	});
+function handleErrorOutput(output: string, getState: GetState) {
+	const state: ApplicationState = getState();
+
+	if (state.executionState === 'stopped') {
+		return;
+	}
+
+	state.appendToConsole(mapTextToConsoleContent(
+		output,
+		state.executionHistoryPosition,
+		'error'
+	));
+}
+
+function handleIncomingInputPrompt(prompt: string, getState: GetState): void {
+	const state: ApplicationState = getState();
+
+	if (state.executionState === 'stopped') {
+		return;
+	}
+
+	state.appendToConsole(mapTextToConsoleContent(
+		prompt,
+		state.executionHistoryPosition,
+		'prompt_text'
+	));
+}
+
+function mapTextToConsoleContent(
+	text: string,
+	executionHistoryPosition: number,
+	contentType: ConsoleContentType
+): ConsoleContent[] {
+	return text.split('\n')
+		.flatMap((line, index) => {
+			const lineContent: ConsoleContent = {
+				executionHistoryPosition: executionHistoryPosition,
+				text: line,
+				type: contentType
+			};
+
+			if (index === 0) {
+				return [ lineContent ];
+			}
+
+			return [
+				{
+					executionHistoryPosition: executionHistoryPosition,
+					text: '',
+					type: 'line_break'
+				},
+				lineContent
+			];
+		})
+		.filter((content: ConsoleContent) =>
+			content.type === 'line_break' || content.text !== '');
+}
+
+function handleExecutionWaitingForInput(setState: SetState): void {
+	setState({ executionIsWaitingForInput: true });
+}
+
+function submitConsoleInput(
+	input: string,
+	getState: GetState,
+	setState: SetState
+): void {
+	const state: ApplicationState = getState();
+
+	if (state.executionState === 'stopped') {
+		return;
+	}
+
+	state.appendToConsole([
+		{
+			executionHistoryPosition: state.executionHistoryPosition,
+			text: input,
+			type: 'user_input'
+		},
+		{
+			executionHistoryPosition: state.executionHistoryPosition,
+			text: '',
+			type: 'line_break'
+		}
+	]);
+
+	setState({ executionIsWaitingForInput: false });
+
+	const encoder: TextEncoder = new TextEncoder();
+	const encodedData: Uint8Array = encoder.encode(input);
+
+	dataBuffer.fill(0);
+	dataBuffer.set(encodedData);
+
+	Atomics.store(controlBuffer, 0, CONTROL_BUFFER_VALUES.dataAvailable);
+	Atomics.notify(controlBuffer, 0);
 }
 
 function handleExecutionFinished(setState: SetState) {
@@ -275,19 +378,6 @@ function handleExecutionCheckpoint(
 	if (getState().executionState === 'running') {
 		resumeAfterDelay(getState, setState);
 	}
-}
-
-function handleExecutionWaitingForInput(): void {
-	const input: string = prompt('Input:') || '';
-
-	const encoder: TextEncoder = new TextEncoder();
-	const encodedData: Uint8Array = encoder.encode(input);
-
-	dataBuffer.fill(0);
-	dataBuffer.set(encodedData);
-
-	Atomics.store(controlBuffer, 0, CONTROL_BUFFER_VALUES.dataAvailable);
-	Atomics.notify(controlBuffer, 0);
 }
 
 function setExecutionSpeed(speed: number, getState: GetState, setState: SetState): void {
@@ -327,6 +417,7 @@ function startExecution(getState: GetState, setState: SetState): void {
 		setState((state: ApplicationState) => ({
 			annotatedActivePythonCode: state.activePythonCode,
 			consoleContent: [{
+				executionHistoryPosition: state.executionHistoryPosition,
 				text: error.message,
 				type: 'error'
 			}],
@@ -349,7 +440,7 @@ function startExecution(getState: GetState, setState: SetState): void {
 		controlBuffer,
 		dataBuffer,
 		interruptBuffer,
-		instrumentedCode: state.pythonCodeAnalysisResult.instrumentationResult.instrumentedCode
+		instrumentationResult: state.pythonCodeAnalysisResult.instrumentationResult
 	});
 }
 
@@ -394,6 +485,7 @@ function resetExecution(setState: SetState): void {
 	setState((state: ApplicationState) => ({
 		activePythonCode: state.annotatedActivePythonCode,
 		consoleContent: [],
+		executionIsWaitingForInput: false,
 		executionHistory: [],
 		executionHistoryPosition: 0,
 		executionState: 'stopped'

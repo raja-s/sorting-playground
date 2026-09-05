@@ -48,6 +48,8 @@ export function ControlBar() {
 
 	const bumpEditorReloadCodeTriggerValue = useApplicationStore(state => state.bumpEditorReloadCodeTriggerValue);
 
+	const executionIsWaitingForInput = useApplicationStore(state => state.executionIsWaitingForInput);
+
 	const executionHistory = useApplicationStore(state => state.executionHistory);
 	const executionHistoryPosition: number = useApplicationStore(state => state.executionHistoryPosition);
 
@@ -188,7 +190,8 @@ export function ControlBar() {
 							executionState === 'running' || (
 								executionState === 'finished' &&
 								executionHistoryPosition === executionHistory.length
-							)
+							) ||
+							executionIsWaitingForInput
 						}
 						onClick={runExecution}
 					>
@@ -199,7 +202,7 @@ export function ControlBar() {
 					<ControlIconButton
 						color='pause'
 						tooltipTitle={translate('control_bar.main_execution_controls.pause_button')}
-						disabled={executionState !== 'running'}
+						disabled={executionState !== 'running' || executionIsWaitingForInput}
 						onClick={pauseExecution}
 					>
 						<PauseIcon fontSize='large' />
@@ -235,7 +238,7 @@ export function ControlBar() {
 						tooltipTitle={translate('control_bar.manual_execution_controls.step_backward_button')}
 						disabled={
 							executionState === 'running' || executionState === 'stopped' ||
-							executionHistoryPosition === 0
+							executionHistoryPosition === 0 || executionIsWaitingForInput
 						}
 						onClick={stepBackward}
 					>
@@ -249,7 +252,8 @@ export function ControlBar() {
 							executionState === 'running' || (
 								executionState === 'finished' &&
 								executionHistoryPosition === executionHistory.length
-							)
+							) ||
+							executionIsWaitingForInput
 						}
 						onClick={stepForward}
 					>

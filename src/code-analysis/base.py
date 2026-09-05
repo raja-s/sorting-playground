@@ -1,10 +1,13 @@
 
 ##### Instrumentation Logic #####
 
-import inspect
+import builtins
+import inspect # Used indirectly in instrumentation.ts
 import json
 import types
 import uuid
+
+from js import setIncomingInputPrompt, processCheckpoint
 
 class TraceableListItemMeta(type):
     def __new__(metaclass, name, base_classes, attributes):
@@ -72,6 +75,19 @@ class TraceableListItem(metaclass=TraceableListItemMeta):
             'value':      self._value
         }
 
+_actual_print = builtins.print
+_actual_input = builtins.input
+
+def _flushing_print(*objects, sep=' ', end='\n', file=None, flush=True):
+    return _actual_print(*objects, sep=sep, end=end, file=file, flush=True)
+
+def _prompt_forwarding_input(prompt="", /):
+    setIncomingInputPrompt(prompt)
+    return _actual_input()
+
+builtins.print = _flushing_print
+builtins.input = _prompt_forwarding_input
+
 def _execution_checkpoint(
     sync_with_controller: bool,
     line_number_range: tuple[int, int] | None,
@@ -103,6 +119,7 @@ def _execution_checkpoint(
 
         keys_to_clean_up: list[str] = [
             '__builtins__',
+            'builtins',
             'inspect',
             'json',
             'types',
@@ -111,7 +128,13 @@ def _execution_checkpoint(
             'TraceableListItem',
             '_frame_identifier',
             '_execution_checkpoint',
-            'SORTING_LIST_VARIABLE_NAME'
+            'SORTING_LIST_VARIABLE_NAME',
+            'processCheckpoint',
+            'setIncomingInputPrompt',
+            '_actual_print',
+            '_actual_input',
+            '_flushing_print',
+            '_prompt_forwarding_input'
         ]
         for key in keys_to_clean_up:
             if key in scope_locals_copy:
@@ -137,7 +160,7 @@ def _execution_checkpoint(
         with open('/execution-control/checkpoint.json', 'w') as checkpoint_file:
             json.dump(checkpoint, checkpoint_file, indent='\t', default=json_default)
 
-        input()
+        processCheckpoint()
     finally:
         del frame
 

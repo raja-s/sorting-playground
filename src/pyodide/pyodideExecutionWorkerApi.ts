@@ -5,10 +5,11 @@ export const MESSAGE_TYPES = {
 	// For messages from the worker
 	environmentInitialized: 'ENVIRONMENT_INITIALIZED',
 	standardOutput: 'STDOUT',
+	incomingInputPrompt: 'INCOMING_INPUT_PROMPT',
+	waitingForInput: 'WAITING_FOR_INPUT',
 	errorOutput: 'STDERR',
 	executionFinished: 'EXECUTION_FINISHED',
-	executionCheckpoint: 'EXECUTION_CHECKPOINT',
-	waitingForInput: 'WAITING_FOR_INPUT'
+	executionCheckpoint: 'EXECUTION_CHECKPOINT'
 };
 
 export const CONTROL_BUFFER_VALUES = {

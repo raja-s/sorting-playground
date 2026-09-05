@@ -1,9 +1,17 @@
 
 import { type CodeAnalysisResult } from '../code-analysis/codeAnalysis.ts';
 
-import { type ConsoleContent } from './useApplicationStore.ts';
 import { type ExecutionHistory } from './ExecutionCheckpoint.ts';
 import { type SortingList } from './SortingList.ts';
+
+export type ConsoleContentType =
+	'standard_output' | 'line_break' | 'prompt_text' | 'user_input' | 'error';
+
+export type ConsoleContent = {
+	executionHistoryPosition: number,
+	text: string,
+	type: ConsoleContentType
+};
 
 export type ExecutionState = 'stopped' | 'paused' | 'running' | 'finished';
 
@@ -25,7 +33,9 @@ export default interface ApplicationState {
 	bumpEditorReloadCodeTriggerValue: () => void;
 
 	consoleContent: ConsoleContent[];
-	appendToConsole: (content: ConsoleContent) => void;
+	appendToConsole: (content: ConsoleContent[]) => void;
+	executionIsWaitingForInput: boolean;
+	submitConsoleInput: (input: string) => void;
 
 	pythonCodeAnalysisResult: CodeAnalysisResult;
 

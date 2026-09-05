@@ -3,6 +3,8 @@ import { type PyodideInterface, loadPyodide } from 'pyodide';
 
 import pyodidePackage from 'pyodide/package.json';
 
+import { type InstrumentationResult } from '../code-analysis/instrumentation.ts';
+
 import {
 	MESSAGE_TYPES,
 	CONTROL_BUFFER_VALUES,
@@ -43,6 +45,8 @@ async function executePythonCode(payload): Promise<void> {
 	const dataBuffer: Uint8Array = payload.dataBuffer;
 	const interruptBuffer: Uint8Array = payload.interruptBuffer;
 
+	const outputDecoder = new TextDecoder('utf-8');
+
 	Atomics.store(interruptBuffer, 0, INTERRUPT_BUFFER_VALUES.continue);
 
 	pyodide.setInterruptBuffer(interruptBuffer);
@@ -52,23 +56,42 @@ async function executePythonCode(payload): Promise<void> {
 	});
 
 	pyodide.setStdout({
-		batched: output => {
+		write: buffer => {
+			const output = outputDecoder.decode(buffer, { stream: true });
 			self.postMessage({ type: MESSAGE_TYPES.standardOutput, output });
+			return buffer.length;
 		}
 	});
 
 	pyodide.setStderr({
 		batched: output => {
-			self.postMessage({ type: MESSAGE_TYPES.errorOutput, output });
+			self.postMessage({
+				type: MESSAGE_TYPES.errorOutput,
+				output: cleanUpError(output, payload.instrumentationResult)
+			});
 		}
 	});
+
+	self.processCheckpoint = () => {
+		sendCheckpointAndPauseExecution(controlBuffer);
+	};
+
+	self.setIncomingInputPrompt = (prompt: string) => {
+		self.postMessage({ type: MESSAGE_TYPES.incomingInputPrompt, prompt });
+	};
 
 	const isolatedNamespace = pyodide.globals.get("dict")();
 
 	try {
-		await pyodide.runPythonAsync(payload.instrumentedCode, { globals: isolatedNamespace });
+		await pyodide.runPythonAsync(
+			payload.instrumentationResult.instrumentedCode,
+			{ globals: isolatedNamespace }
+		);
 	} catch (error: Error) {
-		self.postMessage({ type: MESSAGE_TYPES.errorOutput, output: error.message });
+		self.postMessage({
+			type: MESSAGE_TYPES.errorOutput,
+			output: cleanUpError(error.message, payload.instrumentationResult)
+		});
 	} finally {
 		isolatedNamespace.destroy();
 	}
@@ -81,22 +104,7 @@ async function executePythonCode(payload): Promise<void> {
 	self.postMessage({ type: MESSAGE_TYPES.executionFinished });
 }
 
-function handlePythonInput(
-	controlBuffer: Int32Array,
-	dataBuffer: Uint8Array
-): string {
-	const fileInfo = pyodide.FS.analyzePath(CHECKPOINT_FILE_PATH);
-
-	if (fileInfo.exists) {
-		return sendCheckpointAndPauseExecution(controlBuffer);
-	} else {
-		return takeInputForPython(controlBuffer, dataBuffer);
-	}
-}
-
-function sendCheckpointAndPauseExecution(
-	controlBuffer: Int32Array
-): string {
+function sendCheckpointAndPauseExecution(controlBuffer: Int32Array): void {
 	const checkpoint: object =
 		JSON.parse(pyodide.FS.readFile(CHECKPOINT_FILE_PATH, { encoding: 'utf8' }));
 
@@ -107,26 +115,25 @@ function sendCheckpointAndPauseExecution(
 
 	Atomics.store(controlBuffer, 0, CONTROL_BUFFER_VALUES.waitingForData); // Reset the control buffer
 	Atomics.wait(controlBuffer, 0, CONTROL_BUFFER_VALUES.waitingForData);
-	const controlBufferValue: number = Atomics.load(controlBuffer, 0);
 
 	pyodide.FS.unlink(CHECKPOINT_FILE_PATH);
+}
+
+function handlePythonInput(
+	controlBuffer: Int32Array,
+	dataBuffer: Uint8Array
+): string {
+	let controlBufferValue: number = Atomics.load(controlBuffer, 0);
 
 	if (controlBufferValue === CONTROL_BUFFER_VALUES.stopExecution) {
 		return '';
 	}
 
-	return '';
-}
-
-function takeInputForPython(
-	controlBuffer: Int32Array,
-	dataBuffer: Uint8Array
-): string {
 	self.postMessage({ type: MESSAGE_TYPES.waitingForInput });
 
 	Atomics.store(controlBuffer, 0, CONTROL_BUFFER_VALUES.waitingForData); // Reset the control buffer
 	Atomics.wait(controlBuffer, 0, CONTROL_BUFFER_VALUES.waitingForData);
-	const controlBufferValue: number = Atomics.load(controlBuffer, 0);
+	controlBufferValue = Atomics.load(controlBuffer, 0);
 
 	if (controlBufferValue === CONTROL_BUFFER_VALUES.stopExecution) {
 		return '';
@@ -134,4 +141,51 @@ function takeInputForPython(
 
 	const decoder: TextDecoder = new TextDecoder();
 	return decoder.decode(Uint8Array.from(dataBuffer)).replace(/\0/g, '');
+}
+
+function cleanUpError(
+	text: string,
+	instrumentationResult: InstrumentationResult
+): string {
+	const textLines: string[] = text.split('\n');
+
+	const cleanedUpErrorTextLines: string[] = [];
+
+	let skipping = false;
+
+	for (const line of textLines) {
+		if (line.startsWith('  File ')) {
+			skipping = !line.startsWith('  File "<exec>"');
+		}
+
+		if (skipping) {
+			continue;
+		}
+
+		cleanedUpErrorTextLines.push(
+			!line.startsWith('  File "<exec>"') ? line :
+				mapLineNumber(line, instrumentationResult)
+		);
+	}
+
+	return cleanedUpErrorTextLines.join('\n');
+}
+
+function mapLineNumber(
+	line: string,
+	instrumentationResult: InstrumentationResult
+): string {
+	const regex: RegExp = /(File "<exec>", line )(\d+)/;
+	const matches: RegExpExecArray | null = regex.exec(line);
+
+	if (matches == null) {
+		return line;
+	}
+
+	const lineNumber: number = parseInt(matches[2]);
+
+	const correctedLineNumber: number =
+		instrumentationResult.lineNumberMapping[lineNumber];
+
+	return line.replace(regex, `$1${correctedLineNumber}`);
 }
