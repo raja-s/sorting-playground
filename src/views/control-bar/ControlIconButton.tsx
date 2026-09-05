@@ -22,10 +22,11 @@ export function ControlIconButton(props: ControlIconButtonProps) {
 			props.color != null ? theme.palette[props.color] : null;
 
 		const buttonStyle: SxProps<Theme> = {
-			paddingX: '10px',
+			padding: '10px',
 			borderRadius: '8px',
 			minHeight: '55px',
-			minWidth: '55px'
+			minWidth: '55px',
+			overflow: 'hidden'
 		};
 
 		if (themeColor == null) {
@@ -58,6 +59,7 @@ export function ControlIconButton(props: ControlIconButtonProps) {
 					sx={sxProps}
 					disabled={props.disabled}
 					onClick={props.onClick}
+					centerRipple={false}
 				>
 					{props.children}
 				</IconButton>

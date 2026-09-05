@@ -21,7 +21,7 @@ export default function SortingIndices() {
 		return null;
 	}
 
-	let executionCheckpoint: ExecutionCheckpoint =
+	const executionCheckpoint: ExecutionCheckpoint =
 		executionHistory[Math.max(executionHistoryPosition - 1, 0)];
 
 	const configuration: VisualizedVariablesConfiguration = pythonCodeAnalysisResult.visualizedVariablesConfiguration;

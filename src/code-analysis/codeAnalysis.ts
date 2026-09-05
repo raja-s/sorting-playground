@@ -582,19 +582,24 @@ function distributeVariables(variables: VisualizedVariable[]): VisualizedVariabl
 		levelDistribution: {}
 	};
 
-	const reverseDistribution: { [level: number]: string } = {};
+	const reverseDistribution: { [level: number]: string[] } = {};
+
+	// First, distribute variables that were explicitly assigned a level
 
 	for (const visualizedVariable of variables) {
-		if (
-			visualizedVariable.level == null ||
-			visualizedVariable.level in reverseDistribution
-		) {
+		if (visualizedVariable.level == null) {
 			continue;
 		}
 
-		reverseDistribution[visualizedVariable.level] = visualizedVariable.variable.identifier;
+		if (!(visualizedVariable.level in reverseDistribution)) {
+			reverseDistribution[visualizedVariable.level] = [];
+		}
+
+		reverseDistribution[visualizedVariable.level].push(visualizedVariable.variable.identifier);
 		configuration.variableCount++;
 	}
+
+	// Now distribute the remaining variables on unoccupied levels
 
 	let level: number = 1;
 
@@ -607,12 +612,14 @@ function distributeVariables(variables: VisualizedVariable[]): VisualizedVariabl
 			level++;
 		}
 
-		reverseDistribution[level] = visualizedVariable.variable.identifier;
+		reverseDistribution[level] = [ visualizedVariable.variable.identifier ];
 		configuration.variableCount++;
 	}
 
 	for (const level in reverseDistribution) {
-		configuration.levelDistribution[reverseDistribution[level]] = Number(level);
+		for (const variableIdentifier of reverseDistribution[level]) {
+			configuration.levelDistribution[variableIdentifier] = Number(level);
+		}
 	}
 
 	return configuration;
