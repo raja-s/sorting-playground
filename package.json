@@ -31,7 +31,7 @@
     "i18next-browser-languagedetector": "^8.2.1",
     "i18next-http-backend": "^3.0.2",
     "maath": "^0.10.8",
-    "py-ast": "^1.9.0",
+    "py-ast": "^1.16.0",
     "pyodide": "0.29.3",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",

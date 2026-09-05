@@ -1,15 +1,22 @@
 
 import {
 	type ASTNodeUnion,
+	type Arg,
 	type Assign,
+	type ClassDef,
+	type ExprNode,
+	type For,
+	type FunctionDef,
+	type If,
 	type Module,
+	type Name,
 	parse
 } from 'py-ast';
 
 import SourceCode from './SourceCode.ts';
 
 import BaseNodeVisitor from './BaseNodeVisitor.ts';
-import NodeEndsSetterVisitor from './NodeEndsSetterVisitor.ts';
+import CodeBlockEndsSetterVisitor from './CodeBlockEndsSetterVisitor.ts';
 
 import SimulationAnnotation, { type ModifierKind, Modifier } from './SimulationAnnotation.ts';
 
@@ -102,6 +109,16 @@ const SAVE_EXECUTION_CHECKOINT_NODE_TYPES = new Set([
 	'With'
 ]);
 
+const CODE_BLOCK_NODE_TYPES = new Set([
+	'ClassDef',
+	'For',
+	'FunctionDef',
+	'If',
+	'Match',
+	'While',
+	'With'
+]);
+
 class PythonCodeAnalyzer extends BaseNodeVisitor {
 
 	private readonly sortingListVariableName: string;
@@ -150,10 +167,13 @@ class PythonCodeAnalyzer extends BaseNodeVisitor {
 		}
 
 		if (SAVE_EXECUTION_CHECKOINT_NODE_TYPES.has(node.nodeType) && !node.isElif) {
+			const endLineNumber: number = CODE_BLOCK_NODE_TYPES.has(node.nodeType) ?
+				node.codeBlockHeaderEnd.lineNumber : node.end_lineno as number;
+
 			this.executionCheckpointInstructions[lineNumber] = {
 				lineRange: {
 					start: lineNumber,
-					end: node.end_lineno as number
+					end: endLineNumber
 				},
 				syncWithController:
 					this.syncWithControllerOnCheckpoints && !this.nodeHasModifier(node, 'skip')
@@ -163,61 +183,61 @@ class PythonCodeAnalyzer extends BaseNodeVisitor {
 		super.visit(node);
 	}
 
-	override visitModule(moduleNode: Module): void {
+	visitModule(moduleNode: Module): void {
 		this.genericVisit(moduleNode);
 		this.trackedVariableMap[-1] = this.trackedVariablesStackHead().slice();
 		this.visualizedVariableMap[-1] = this.visualizedVariablesStackHead().slice();
 	}
 
-	override visitAssign(assignNode: Assign): void {
-		const eligibleVariableNodes: ASTNodeUnion[] =
+	visitAssign(assignNode: Assign): void {
+		const eligibleVariableNodes: Name[] =
 			flattenTuplesAmongNames(assignNode.targets)
-				.filter((node: ASTNodeUnion) => node.id !== this.sortingListVariableName);
+				.filter((node: Name) => node.id !== this.sortingListVariableName);
 
 		this.trackedVariablesStackHead().push(
 			...eligibleVariableNodes
-				.filter((node: ASTNodeUnion) =>
+				.filter((node: Name) =>
 					!this.trackedVariablesStackHead().some(variable => node.id === variable.name))
-				.filter((node: ASTNodeUnion) => this.variableIsTracked(node, node.id))
-				.map((node: ASTNodeUnion) => createVariable(node, node.id))
+				.filter((node: Name) => this.variableIsTracked(node, node.id))
+				.map((node: Name) => createVariable(node, node.id))
 		);
 
 		this.registerAndPushVisualizedVariables(
 			eligibleVariableNodes
-				.filter((node: ASTNodeUnion) =>
+				.filter((node: Name) =>
 					!this.visualizedVariablesStackHead().some(variable => node.id === variable.name))
-				.map((node: ASTNodeUnion) => this.getVisualizedVariable(node, node.id))
+				.map((node: Name) => this.getVisualizedVariable(node, node.id))
 		);
 
 		this.genericVisit(assignNode);
 	}
 
-	override visitAnnAssign(assignNode: Assign): void {
+	visitAnnAssign(assignNode: Assign): void {
 		this.visitAssign(assignNode);
 	}
 
-	override visitFor(forNode: ASTNodeUnion): void {
-		const variableNodes: ASTNodeUnion[] = flattenTuplesAmongNames([ forNode.target ]);
+	visitFor(forNode: For): void {
+		const variableNodes: Name[] = flattenTuplesAmongNames([ forNode.target ]);
 
 		this.trackedVariablesStackHead().push(
 			...variableNodes
-				.filter((node: ASTNodeUnion) =>
+				.filter((node: Name) =>
 					!this.trackedVariablesStackHead().some(variable => node.id === variable.name))
-				.filter((node: ASTNodeUnion) => this.variableIsTracked(node, node.id))
-				.map((node: ASTNodeUnion) => createVariable(node, node.id))
+				.filter((node: Name) => this.variableIsTracked(node, node.id))
+				.map((node: Name) => createVariable(node, node.id))
 		);
 
 		this.registerAndPushVisualizedVariables(
 			variableNodes
-				.filter((node: ASTNodeUnion) =>
+				.filter((node: Name) =>
 					!this.visualizedVariablesStackHead().some(variable => node.id === variable.name))
-				.map((node: ASTNodeUnion) => this.getVisualizedVariable(node, node.id))
+				.map((node: Name) => this.getVisualizedVariable(node, node.id))
 		);
 
 		this.genericVisit(forNode);
 	}
 
-	override visitClassDef(classNode: ASTNodeUnion): void {
+	visitClassDef(classNode: ClassDef): void {
 		const previousQualifiedNamePrefix: string = this.qualifiedNamePrefix;
 		this.qualifiedNamePrefix += `${classNode.name}.`;
 
@@ -226,7 +246,7 @@ class PythonCodeAnalyzer extends BaseNodeVisitor {
 		this.qualifiedNamePrefix = previousQualifiedNamePrefix;
 	}
 
-	override visitFunctionDef(functionNode: ASTNodeUnion): void {
+	visitFunctionDef(functionNode: FunctionDef): void {
 		const functionObject: Function = this.createFunction(functionNode);
 
 		this.functions[functionObject.identifier] = functionObject;
@@ -236,13 +256,13 @@ class PythonCodeAnalyzer extends BaseNodeVisitor {
 
 		this.trackedVariablesStackHead().push(
 			...functionNode.args.args
-				.filter((parameter: ASTNodeUnion) => this.variableIsTracked(parameter, parameter.arg))
-				.map((parameter: ASTNodeUnion) => createVariable(parameter, parameter.arg))
+				.filter((parameter: Arg) => this.variableIsTracked(parameter, parameter.arg))
+				.map((parameter: Arg) => createVariable(parameter, parameter.arg))
 		);
 
 		this.registerAndPushVisualizedVariables(
 			functionNode.args.args
-				.map((parameter: ASTNodeUnion) => this.getVisualizedVariable(parameter, parameter.arg))
+				.map((parameter: Arg) => this.getVisualizedVariable(parameter, parameter.arg))
 		);
 
 		const previousQualifiedNamePrefix: string = this.qualifiedNamePrefix;
@@ -266,7 +286,7 @@ class PythonCodeAnalyzer extends BaseNodeVisitor {
 	/**
 	 * WARNING: `ifNode` could also be the if of an elif.
      */
-	override visitIf(ifNode: ASTNodeUnion): void {
+	visitIf(ifNode: If): void {
 		const lineNumber: number = ifNode.lineno as number;
 
 		this.addSortingListComparison(ifNode);
@@ -297,7 +317,7 @@ class PythonCodeAnalyzer extends BaseNodeVisitor {
 			this.executionCheckpointInstructions[lineNumber] = {
 				lineRange: {
 					start: lineNumber,
-					end: ifNode.end_lineno as number
+					end: ifNode.codeBlockHeaderEnd.lineNumber as number
 				},
 				syncWithController:
 					this.syncWithControllerOnCheckpoints && !this.nodeHasModifier(ifNode, 'skip')
@@ -326,7 +346,7 @@ class PythonCodeAnalyzer extends BaseNodeVisitor {
 		}
 	}
 
-	private addSortingListComparison(ifNode: ASTNodeUnion): void {
+	private addSortingListComparison(ifNode: If): void {
 		if (
 			ifNode.test.nodeType !== 'Compare' ||
 			ifNode.test.ops.length !== 1 || (
@@ -394,7 +414,7 @@ class PythonCodeAnalyzer extends BaseNodeVisitor {
 		return this.visualizedVariablesStack[this.visualizedVariablesStack.length - 1];
 	}
 
-	private createFunction(node: ASTNodeUnion): Function {
+	private createFunction(node: FunctionDef): Function {
 		const functionObject: Function = {
 			identifier: `${this.qualifiedNamePrefix}${node.name}`,
 			divideRanges: []
@@ -431,7 +451,7 @@ class PythonCodeAnalyzer extends BaseNodeVisitor {
 		);
 	}
 
-	private variableIsTracked(variableNode: ASTNodeUnion, variableName: string): boolean {
+	private variableIsTracked(variableNode: Name | Arg, variableName: string): boolean {
 		const modifier: Modifier | null = this.getModifierOnNode(variableNode, 'track');
 
 		return modifier != null && (
@@ -441,7 +461,7 @@ class PythonCodeAnalyzer extends BaseNodeVisitor {
 	}
 
 	private getVisualizedVariable(
-		variableNode: ASTNodeUnion,
+		variableNode: Name | Arg,
 		variableName: string
 	): VisualizedVariable | null {
 		const modifier: Modifier | null = this.getModifierOnNode(variableNode, 'visualize');
@@ -527,7 +547,7 @@ class PythonCodeAnalyzer extends BaseNodeVisitor {
 
 }
 
-function createVariable(node: ASTNodeUnion, name: string): Variable {
+function createVariable(node: Name | Arg, name: string): Variable {
 	return {
 		identifier: `${node.lineno}_${name}`,
 		name,
@@ -538,8 +558,8 @@ function createVariable(node: ASTNodeUnion, name: string): Variable {
 	};
 }
 
-function flattenTuplesAmongNames(array: ASTNodeUnion[]): ASTNodeUnion[] {
-	const flattenedArray: ASTNodeUnion[] = [];
+function flattenTuplesAmongNames(array: ExprNode[]): Name[] {
+	const flattenedArray: Name[] = [];
 
 	for (const node of array) {
 		if (node.nodeType === 'Name') {
@@ -612,7 +632,7 @@ export function analyzePythonCode(
 		SimulationAnnotation.extractAll(sourceCode)
 	);
 
-	new NodeEndsSetterVisitor(sourceCode).visit(ast);
+	new CodeBlockEndsSetterVisitor(sourceCode).visit(ast);
 
 	analyzer.visit(ast);
 
