@@ -23,16 +23,22 @@ export function getCodeEditorTheme(
 	return EditorView.theme({
 		'&': { maxHeight: '100%' },
 		'&.cm-focused': { outline: 'none' },
-		'.cm-scroller': { outline: 'none' },
-		'.cm-gutters': {
-			backgroundColor: '#fff',
+		'.cm-scroller': {
+			display: 'block',
+			outline: 'none',
 
-			fontSize: `${lineNumberFontSize}px`,
 			fontFamily: '"JetBrains Mono", monospace',
 			fontOpticalSizing: 'auto',
 			fontWeight: 'normal',
 			fontStyle: 'normal',
 			fontVariantLigatures: 'none'
+		},
+		'.cm-gutters': {
+			position: 'absolute',
+			left: 0,
+			backgroundColor: '#fff',
+
+			fontSize: `${lineNumberFontSize}px`
 		},
 		'.cm-gutters.cm-gutters-before': {
 			borderRightWidth: 0
@@ -43,16 +49,17 @@ export function getCodeEditorTheme(
 			justifyContent: 'flex-end',
 			color: '#ccc'
 		},
-		'.cm-lineNumbers .cm-gutterElement': {
+		'.cm-lineNumbers .cm-gutterElement:not([style*="height: 0px"])': {
+			height: 'auto !important',
 			paddingRight: `${lineNumberPaddingRight}px`
 		},
 		'.cm-content': {
-			fontSize: `${codeFontSize}px`,
-			fontFamily: '"JetBrains Mono", monospace',
-			fontOpticalSizing: 'auto',
-			fontWeight: 'normal',
-			fontStyle: 'normal',
-			fontVariantLigatures: 'none'
+			fontSize: `${codeFontSize}px`
+		},
+		'.cm-line': {
+			display: 'flow-root',
+			boxSizing: 'border-box',
+			contain: 'layout'
 		},
 		'.cm-activeLine,.cm-activeLineGutter': {
 			backgroundColor: `${muiTheme.palette.primary.main}11`

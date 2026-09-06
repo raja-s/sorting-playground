@@ -234,28 +234,39 @@ function handleExecutionUpdate(
 
 	let effectPosition;
 	let effect;
+	let executingLinePosition;
 
 	if (executionCheckpoint.lineRange == null) {
-		effectPosition = transaction.state.doc.line(editorView.state.doc.lines).from;
+		effectPosition = transaction.state.doc.line(transaction.state.doc.lines).from;
 		effect = setExecutionEndLine;
-	} else if (executionHistoryPosition === 0) {
-		effectPosition = {
-			from: transaction.state.doc.line(executionCheckpoint.lineRange.start).from,
-			to: transaction.state.doc.line(executionCheckpoint.lineRange.end).to
-		};
-		effect = setExecutionStartLine;
+
+		executingLinePosition =
+			transaction.state.doc.line(transaction.state.doc.lines).from;
 	} else {
 		effectPosition = {
 			from: transaction.state.doc.line(executionCheckpoint.lineRange.start).from,
 			to: transaction.state.doc.line(executionCheckpoint.lineRange.end).to
 		};
-		effect = setExecutingLine;
+
+		effect = executionHistoryPosition === 0 ?
+			setExecutionStartLine : setExecutingLine;
+
+		executingLinePosition =
+			transaction.state.doc.line(executionCheckpoint.lineRange.start).from;
 	}
 
-	editorView.dispatch({
-		changes: executionAnnotationsChanges,
-		effects: effect.of(effectPosition)
-	});
+	editorView.dispatch(
+		{
+			changes: executionAnnotationsChanges,
+			effects: [
+				effect.of(effectPosition),
+				EditorView.scrollIntoView(
+					executingLinePosition,
+					{ x : 'start', y : 'nearest' }
+				)
+			]
+		}
+	);
 }
 
 function getExecutionAnnotationsChanges(
