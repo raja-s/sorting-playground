@@ -24,14 +24,17 @@ export function CodeView(props: CodeViewProps) {
 		<Grid
 			size={6}
 			position='relative'
-			overflow='hidden'
+			display='flex'
+			flexDirection='column'
 		>
 			<Stack
+				height='100%'
+				flexGrow={1}
+				justifyContent='flex-start'
 				sx={{
 					position: 'absolute',
 					inset: 0
 				}}
-				overflow='hidden'
 			>
 				<Stack
 					direction='row'
@@ -63,7 +66,7 @@ export function CodeView(props: CodeViewProps) {
 					justifyContent='center'
 					padding='30px'
 					rowGap={2}
-					overflow='hidden'
+					sx={{ minHeight: 0 }}
 				>
 					<CodeEditor />
 					<Console />

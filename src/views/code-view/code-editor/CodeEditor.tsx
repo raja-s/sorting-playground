@@ -132,7 +132,10 @@ ${translate('code.to_do_comment')}
 			basicSetup={{ foldGutter : false }}
 			extensions={extensions}
 
-			style={{ maxHeight: '100%' }}
+			style={{
+				minHeight: 0,
+				overflowY: 'auto'
+			}}
 		/>
 	);
 }

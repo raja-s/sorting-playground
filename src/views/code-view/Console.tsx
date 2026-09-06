@@ -61,6 +61,9 @@ export default function Console() {
 
 	return (
 		<Stack
+			height='200px'
+			flexGrow={0}
+			flexShrink={0}
 			padding={2}
 			borderRadius='15px'
 			sx={{
@@ -72,14 +75,19 @@ export default function Console() {
 				<Stack
 					key={lineIndex}
 					direction='row'
+					sx={{
+						width: 'max-content',
+						minWidth: '100%',
+						alignItems: 'center'
+					}}
 				>
 					{contentLine.map((content: ConsoleContent, index: number) =>
 						<Typography
 							key={index}
-							sx={{ whiteSpace: 'pre' }}
 							fontFamily='"JetBrains Mono", monospace'
 							fontSize='1.2rem'
 							color={COLORS[content.type]}
+							sx={{ whiteSpace: 'pre' }}
 						>{content.text || '\u200B'}</Typography>
 					)}
 					{lineIndex === consoleContentLines.length - 1 && executionIsWaitingForInput && (
