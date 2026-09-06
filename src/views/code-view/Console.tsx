@@ -28,11 +28,13 @@ export default function Console() {
 
 	const inputRef = useRef<HTMLInputElement>(null);
 
-	useEffect(() => {
+	function focusInput(): void {
 		if (executionIsWaitingForInput && inputRef.current != null) {
 			inputRef.current.focus();
 		}
-	}, [ executionIsWaitingForInput ]);
+	}
+
+	useEffect(focusInput, [ executionIsWaitingForInput ]);
 
 	const consoleContentLines: ConsoleContent[][] = [ [] ];
 
@@ -68,8 +70,10 @@ export default function Console() {
 			borderRadius='15px'
 			sx={{
 				backgroundColor: '#f8faff',
-				overflowX: 'auto'
+				overflowX: 'auto',
+				cursor: executionIsWaitingForInput ? 'text' : 'auto'
 			}}
+			onClick={focusInput}
 		>
 			{consoleContentLines.map((contentLine: ConsoleContent[], lineIndex: number) =>
 				<Stack
