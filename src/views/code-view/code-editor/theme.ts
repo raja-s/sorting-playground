@@ -24,7 +24,6 @@ export function getCodeEditorTheme(
 		'&': { maxHeight: '100%' },
 		'&.cm-focused': { outline: 'none' },
 		'.cm-scroller': {
-			display: 'block',
 			outline: 'none',
 
 			fontFamily: '"JetBrains Mono", monospace',
@@ -34,8 +33,6 @@ export function getCodeEditorTheme(
 			fontVariantLigatures: 'none'
 		},
 		'.cm-gutters': {
-			position: 'absolute',
-			left: 0,
 			backgroundColor: '#fff',
 
 			fontSize: `${lineNumberFontSize}px`
@@ -45,21 +42,29 @@ export function getCodeEditorTheme(
 		},
 		'.cm-gutterElement': {
 			display: 'flex',
+			paddingLeft: '10px !important',
 			alignItems: 'center',
 			justifyContent: 'flex-end',
-			color: '#ccc'
+			color: '#ccc',
+
+			WebkitUserSelect: 'none',
+			MozUserSelect: 'none',
+			msUserSelect: 'none',
+			userSelect: 'none'
 		},
 		'.cm-lineNumbers .cm-gutterElement:not([style*="height: 0px"])': {
-			height: 'auto !important',
-			paddingRight: `${lineNumberPaddingRight}px`
+			paddingRight: `${lineNumberPaddingRight}px`,
+			height: 'auto !important'
+		},
+		'.cm-lineNumbers .cm-gutterElement:not([style*="height: 0px"])::before': {
+			display: 'inline-block',
+			marginRight: '-1ch',
+			content: '"X"',
+			fontSize: `${codeFontSize}px`,
+			visibility: 'hidden'
 		},
 		'.cm-content': {
 			fontSize: `${codeFontSize}px`
-		},
-		'.cm-line': {
-			display: 'flow-root',
-			boxSizing: 'border-box',
-			contain: 'layout'
 		},
 		'.cm-activeLine,.cm-activeLineGutter': {
 			backgroundColor: `${muiTheme.palette.primary.main}11`
