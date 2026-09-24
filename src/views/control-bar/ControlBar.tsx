@@ -33,7 +33,10 @@ import { useTranslation } from 'react-i18next';
 import { fileOpen, fileSave } from 'browser-fs-access';
 
 import { useApplicationStore } from '../../state/useApplicationStore.ts';
-import { type ExecutionState } from '../../state/ApplicationState.ts';
+import type {
+	ExecutionOperationState,
+	ExecutionAutonomyState
+} from '../../state/ApplicationState.ts';
 
 import { ControlIconButton } from './ControlIconButton.tsx';
 
@@ -56,7 +59,8 @@ export function ControlBar() {
 	const executionSpeed: number = useApplicationStore(state => state.executionSpeed);
 	const setExecutionSpeed = useApplicationStore(state => state.setExecutionSpeed);
 
-	const executionState: ExecutionState = useApplicationStore(state => state.executionState);
+	const executionOperationState: ExecutionOperationState = useApplicationStore(state => state.executionOperationState);
+	const executionAutonomyState: ExecutionAutonomyState = useApplicationStore(state => state.executionAutonomyState);
 	const runExecution = useApplicationStore(state => state.runExecution);
 	const pauseExecution = useApplicationStore(state => state.pauseExecution);
 	const stopExecution = useApplicationStore(state => state.stopExecution);
@@ -101,6 +105,15 @@ export function ControlBar() {
 		enableOnContentEditable: true,
 		enableOnFormTags: true
 	});
+
+	const stopButtonEnabled: boolean =
+		executionOperationState === 'operating' || (
+			executionOperationState === 'finished' &&
+			executionHistoryPosition < executionHistory.length
+		);
+
+	const stopButtonShown: boolean =
+		executionOperationState === 'stopped' || stopButtonEnabled;
 
 	return (
 		<Grid
@@ -187,8 +200,8 @@ export function ControlBar() {
 						tooltipTitle={translate('control_bar.main_execution_controls.run_button')}
 						disabled={
 							!readyToExecuteCode ||
-							executionState === 'running' || (
-								executionState === 'finished' &&
+							executionAutonomyState === 'running' || (
+								executionOperationState === 'finished' &&
 								executionHistoryPosition === executionHistory.length
 							) ||
 							executionIsWaitingForInput
@@ -202,30 +215,34 @@ export function ControlBar() {
 					<ControlIconButton
 						color='pause'
 						tooltipTitle={translate('control_bar.main_execution_controls.pause_button')}
-						disabled={executionState !== 'running' || executionIsWaitingForInput}
+						disabled={
+							executionAutonomyState === 'paused' ||
+							executionIsWaitingForInput
+						}
 						onClick={pauseExecution}
 					>
 						<PauseIcon fontSize='large' />
 					</ControlIconButton>
 					<ControlIconButton
-						contained={executionState !== 'finished'}
+						contained={stopButtonEnabled}
 						color='stop'
-						tooltipTitle={executionState === 'finished' ?
-							translate('control_bar.main_execution_controls.reset_button') :
-							translate('control_bar.main_execution_controls.stop_button')}
-						disabled={executionState === 'stopped'}
+						tooltipTitle={
+							stopButtonShown ?
+								translate('control_bar.main_execution_controls.stop_button') :
+								translate('control_bar.main_execution_controls.reset_button')
+						}
+						disabled={executionOperationState === 'stopped'}
 						onClick={() => {
-							if (executionState === 'finished') {
-								resetExecution();
-							} else {
+							if (stopButtonShown) {
 								stopExecution();
+							} else {
+								resetExecution();
 							}
 						}}
 					>
-						{executionState === 'finished' ?
-							<RestartAltIcon fontSize='large' /> :
-							<StopIcon fontSize='large' />
-						}
+						{stopButtonShown ?
+							<StopIcon fontSize='large' /> :
+							<RestartAltIcon fontSize='large' />}
 					</ControlIconButton>
 				</Stack>
 				{VerticalDivider()}
@@ -237,8 +254,10 @@ export function ControlBar() {
 						color='secondary'
 						tooltipTitle={translate('control_bar.manual_execution_controls.step_backward_button')}
 						disabled={
-							executionState === 'running' || executionState === 'stopped' ||
-							executionHistoryPosition === 0 || executionIsWaitingForInput
+							executionOperationState === 'stopped' ||
+							executionAutonomyState === 'running' ||
+							executionHistoryPosition === 0 ||
+							executionIsWaitingForInput
 						}
 						onClick={stepBackward}
 					>
@@ -249,8 +268,8 @@ export function ControlBar() {
 						tooltipTitle={translate('control_bar.manual_execution_controls.step_forward_button')}
 						disabled={
 							!readyToExecuteCode ||
-							executionState === 'running' || (
-								executionState === 'finished' &&
+							executionAutonomyState === 'running' || (
+								executionOperationState === 'finished' &&
 								executionHistoryPosition === executionHistory.length
 							) ||
 							executionIsWaitingForInput

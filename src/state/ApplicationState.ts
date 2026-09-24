@@ -13,7 +13,9 @@ export type ConsoleContent = {
 	type: ConsoleContentType
 };
 
-export type ExecutionState = 'stopped' | 'paused' | 'running' | 'finished';
+export type ExecutionOperationState = 'stopped' | 'operating' | 'finished';
+export type ExecutionAutonomyState = 'paused' | 'running';
+export type ExecutionNatureState = 'executing' | 'simulating';
 
 export default interface ApplicationState {
 	sortingListVariableName: string;
@@ -45,7 +47,10 @@ export default interface ApplicationState {
 	executionSpeed: number;
 	setExecutionSpeed: (speed: number) => void;
 
-	executionState: ExecutionState;
+	executionOperationState: ExecutionOperationState;
+	executionAutonomyState: ExecutionAutonomyState;
+	executionNatureState: ExecutionNatureState;
+
 	runExecution: () => void;
 	pauseExecution: () => void;
 	stopExecution: () => void;

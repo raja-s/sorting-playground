@@ -13,7 +13,7 @@ import { python } from '@codemirror/lang-python';
 import CodeMirrorEditor from '@uiw/react-codemirror';
 
 import { useApplicationStore } from '../../../state/useApplicationStore.ts';
-import { type ExecutionState } from '../../../state/ApplicationState.ts';
+import { type ExecutionOperationState } from '../../../state/ApplicationState.ts';
 import ExecutionCheckpoint, { type ExecutionHistory } from '../../../state/ExecutionCheckpoint.ts';
 
 import {
@@ -54,7 +54,7 @@ export default function CodeEditor() {
 	const pythonCodeAnalysisResult = useApplicationStore(state => state.pythonCodeAnalysisResult);
 	const executionHistory = useApplicationStore(state => state.executionHistory);
 	const executionHistoryPosition = useApplicationStore(state => state.executionHistoryPosition);
-	const executionState = useApplicationStore(state => state.executionState);
+	const executionOperationState = useApplicationStore(state => state.executionOperationState);
 
 	const translate = useTranslation().t;
 
@@ -77,7 +77,7 @@ ${translate('code.to_do_comment')}
 		EditorView.updateListener.of((viewUpdate: ViewUpdate) => {
 			handleViewUpdate(
 				viewUpdate,
-				executionState,
+				executionOperationState,
 				setActivePythonCode,
 				setState,
 				setSortingListData
@@ -96,11 +96,11 @@ ${translate('code.to_do_comment')}
 			editorViewRef.current,
 			activePythonCode,
 			pythonCodeAnalysisResult,
-			executionState,
+			executionOperationState,
 			executionHistory,
 			executionHistoryPosition
 		);
-	}, [ executionHistory, executionHistoryPosition, executionState ]);
+	}, [ executionHistory, executionHistoryPosition, executionOperationState ]);
 
 	useEffect(() => {
 		setEntireEditorCode(editorViewRef.current, activePythonCode);
@@ -115,9 +115,9 @@ ${translate('code.to_do_comment')}
 		executingLineField,
 		simulationAnnotationPlugin,
 		EditorView.editorAttributes.of({
-			class: executionState !== 'stopped' ? 'is-executing' : ''
+			class: executionOperationState !== 'stopped' ? 'is-executing' : ''
 		})
-	], [muiTheme, state, executionState]);
+	], [muiTheme, state, executionOperationState]);
 
 	return (
 		<CodeMirrorEditor
@@ -127,8 +127,8 @@ ${translate('code.to_do_comment')}
 				bumpEditorReloadCodeTriggerValue();
 			}}
 			value={startingCode}
-			readOnly={executionState !== 'stopped'}
-			editable={executionState === 'stopped'}
+			readOnly={executionOperationState !== 'stopped'}
+			editable={executionOperationState === 'stopped'}
 			basicSetup={{ foldGutter : false }}
 			extensions={extensions}
 
@@ -142,12 +142,12 @@ ${translate('code.to_do_comment')}
 
 function handleViewUpdate(
 	viewUpdate: ViewUpdate,
-	executionState: ExecutionState,
+	executionOperationState: ExecutionOperationState,
 	setActivePythonCode: (code: string) => void,
 	setState: React.Dispatch<React.SetStateAction<State>>,
 	setSortingListData: (name: string, list: unknown[]) => void
 ): void {
-	if (!viewUpdate.docChanged || executionState !== 'stopped') {
+	if (!viewUpdate.docChanged || executionOperationState !== 'stopped') {
 		return;
 	}
 
@@ -203,7 +203,7 @@ function handleExecutionUpdate(
 	editorView: EditorView | null,
 	activePythonCode: string,
 	pythonCodeAnalysisResult: CodeAnalysisResult,
-	executionState: ExecutionState,
+	executionOperationState: ExecutionOperationState,
 	executionHistory: ExecutionHistory,
 	executionHistoryPosition: number
 ): void {
@@ -211,7 +211,7 @@ function handleExecutionUpdate(
 		return;
 	}
 
-	if (executionState === 'stopped') {
+	if (executionOperationState === 'stopped') {
 		setEntireEditorCode(editorView, activePythonCode);
 		return;
 	}

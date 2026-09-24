@@ -8,7 +8,7 @@ import { useFrame } from '@react-three/fiber';
 import { Text } from '@react-three/drei';
 import * as THREE from 'three';
 
-import { type ExecutionState } from '../../state/ApplicationState.ts';
+import { type ExecutionOperationState } from '../../state/ApplicationState.ts';
 import { useApplicationStore } from '../../state/useApplicationStore.ts';
 import { type SortingElement, type SortingList } from '../../state/SortingList.ts';
 import ExecutionCheckpoint, { type ExecutionHistory } from '../../state/ExecutionCheckpoint.ts';
@@ -92,13 +92,13 @@ export function BarsSortingScene() {
 		const unsubscribe = useApplicationStore.subscribe(
 			state => [
 				state.sortingList,
-				state.executionState
+				state.executionOperationState
 			] as const,
-			([sortingList, executionState]) => {
+			([sortingList, executionOperationState]) => {
 				handleStateChangeExecutionStopped(
 					simulationStateRef.current,
 					sortingList,
-					executionState
+					executionOperationState
 				)
 			}
 		);
@@ -294,9 +294,9 @@ function handleStateChangeExecutionRunning(
 function handleStateChangeExecutionStopped(
 	simulationState: SimulationState,
 	sortingList: SortingList,
-	executionState: ExecutionState
+	executionOperationState: ExecutionOperationState
 ): void {
-	if (executionState !== 'stopped') {
+	if (executionOperationState !== 'stopped') {
 		return;
 	}
 

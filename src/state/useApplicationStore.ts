@@ -16,7 +16,6 @@ import type ApplicationState from './ApplicationState.ts';
 import {
 	type ConsoleContent,
 	type ConsoleContentType,
-	type ExecutionState
 } from './ApplicationState.ts';
 import ExecutionCheckpoint from './ExecutionCheckpoint.ts';
 
@@ -103,7 +102,10 @@ export const useApplicationStore =
 						setExecutionSpeed(speed, getState, setState);
 					},
 
-					executionState: 'stopped',
+					executionOperationState: 'stopped',
+					executionAutonomyState: 'paused',
+					executionNatureState: 'executing',
+
 					runExecution: () => { runExecution(getState, setState); },
 					pauseExecution: () => { pauseExecution(setState); },
 					stopExecution: () => { stopExecution(setState); },
@@ -152,7 +154,7 @@ function handleHydrationFromUrlComplete(state: ApplicationState): void {
 }
 
 function createDataForShareLink(state: ApplicationState): Partial<ApplicationState> {
-	const pythonCode: string = state.executionState === 'stopped' ?
+	const pythonCode: string = state.executionOperationState === 'stopped' ?
 		state.activePythonCode : state.annotatedActivePythonCode;
 
 	return {
@@ -239,7 +241,7 @@ function handleEnvironmentInitialized(setState: SetState) {
 function handleStandardOutput(output: string, getState: GetState) {
 	const state: ApplicationState = getState();
 
-	if (state.executionState === 'stopped') {
+	if (state.executionOperationState === 'stopped') {
 		return;
 	}
 
@@ -253,7 +255,7 @@ function handleStandardOutput(output: string, getState: GetState) {
 function handleErrorOutput(output: string, getState: GetState) {
 	const state: ApplicationState = getState();
 
-	if (state.executionState === 'stopped') {
+	if (state.executionOperationState === 'stopped') {
 		return;
 	}
 
@@ -267,7 +269,7 @@ function handleErrorOutput(output: string, getState: GetState) {
 function handleIncomingInputPrompt(prompt: string, getState: GetState): void {
 	const state: ApplicationState = getState();
 
-	if (state.executionState === 'stopped') {
+	if (state.executionOperationState === 'stopped') {
 		return;
 	}
 
@@ -319,7 +321,7 @@ function submitConsoleInput(
 ): void {
 	const state: ApplicationState = getState();
 
-	if (state.executionState === 'stopped') {
+	if (state.executionOperationState === 'stopped') {
 		return;
 	}
 
@@ -349,7 +351,11 @@ function submitConsoleInput(
 }
 
 function handleExecutionFinished(setState: SetState) {
-	setState({ executionState: 'finished' });
+	setState({
+		executionOperationState : 'finished',
+		executionAutonomyState : 'paused',
+		executionNatureState : 'simulating'
+	});
 }
 
 function handleExecutionCheckpoint(
@@ -357,7 +363,9 @@ function handleExecutionCheckpoint(
 	getState: GetState,
 	setState: SetState
 ): void {
-	if (getState().executionState === 'stopped') {
+	const state: ApplicationState = getState();
+
+	if (state.executionOperationState === 'stopped') {
 		return;
 	}
 
@@ -375,7 +383,9 @@ function handleExecutionCheckpoint(
 		};
 	});
 
-	if (getState().executionState === 'running') {
+	if (state.executionOperationState === 'operating' &&
+		state.executionAutonomyState === 'running')
+	{
 		resumeAfterDelay(getState, setState);
 	}
 }
@@ -383,7 +393,11 @@ function handleExecutionCheckpoint(
 function setExecutionSpeed(speed: number, getState: GetState, setState: SetState): void {
 	setState({ executionSpeed: speed });
 
-	if (getState().executionState !== 'running') {
+	const state: ApplicationState = getState();
+
+	if (state.executionOperationState === 'stopped' ||
+		state.executionAutonomyState !== 'running')
+	{
 		return;
 	}
 
@@ -392,13 +406,31 @@ function setExecutionSpeed(speed: number, getState: GetState, setState: SetState
 }
 
 function runExecution(getState: GetState, setState: SetState): void {
-	const state: ExecutionState = getState().executionState;
+	const state: ApplicationState = getState();
 
-	setState({ executionState: 'running' });
+	setState((state: ApplicationState) => ({
+		executionOperationState :
+			state.executionOperationState === 'stopped' ?
+				'operating' : state.executionOperationState,
+		executionAutonomyState : 'running'
+	}));
 
-	if (state === 'stopped') {
+	startOrResumeExecution(state, getState, setState);
+}
+
+function startOrResumeExecution(
+	state: ApplicationState,
+	getState: GetState,
+	setState: SetState
+): void {
+	if (state.executionOperationState === 'stopped') {
 		startExecution(getState, setState);
-	} else if (state === 'paused' || state === 'finished') {
+	} else if (
+		state.executionAutonomyState === 'paused' && (
+			state.executionOperationState !== 'finished' ||
+			state.executionHistoryPosition < state.executionHistory.length
+		)
+	) {
 		resumeExecution(getState, setState);
 	}
 }
@@ -415,13 +447,15 @@ function startExecution(getState: GetState, setState: SetState): void {
 	} catch (error) {
 		console.error(error);
 		setState((state: ApplicationState) => ({
-			annotatedActivePythonCode: state.activePythonCode,
-			consoleContent: [{
-				executionHistoryPosition: state.executionHistoryPosition,
-				text: error.message,
-				type: 'error'
+			annotatedActivePythonCode : state.activePythonCode,
+			consoleContent : [{
+				executionHistoryPosition : state.executionHistoryPosition,
+				text : error.message,
+				type : 'error'
 			}],
-			executionState: 'finished'
+			executionOperationState : 'finished',
+			executionAutonomyState : 'paused',
+			executionNatureState : 'simulating'
 		}));
 		return;
 	}
@@ -451,23 +485,38 @@ function resumeAfterDelay(getState: GetState, setState: SetState): void {
 }
 
 function resumeExecution(getState: GetState, setState: SetState): void {
-	if (getState().executionHistoryPosition === getState().executionHistory.length) {
-		Atomics.store(controlBuffer, 0, CONTROL_BUFFER_VALUES.dataAvailable);
-		Atomics.notify(controlBuffer, 0);
-	} else {
+	let state: ApplicationState = getState();
+
+	if (state.executionHistoryPosition < state.executionHistory.length) {
 		setState((state: ApplicationState) => ({
-			executionHistoryPosition: state.executionHistoryPosition + 1
+			executionHistoryPosition : state.executionHistoryPosition + 1,
+			executionAutonomyState :
+				state.executionOperationState === 'finished' &&
+				state.executionHistoryPosition + 1 === state.executionHistory.length ?
+					'paused' : state.executionAutonomyState,
+			executionNatureState : 'simulating'
 		}));
 
-		if (getState().executionState === 'running') {
+		state = getState();
+
+		if (state.executionOperationState !== 'stopped' &&
+			state.executionAutonomyState === 'running')
+		{
 			resumeAfterDelay(getState, setState);
 		}
+	} else if (state.executionOperationState === 'finished') {
+		setState({ executionAutonomyState : 'paused' });
+	} else {
+		setState({ executionNatureState : 'executing' });
+
+		Atomics.store(controlBuffer, 0, CONTROL_BUFFER_VALUES.dataAvailable);
+		Atomics.notify(controlBuffer, 0);
 	}
 }
 
 function pauseExecution(setState: SetState): void {
 	clearTimeout(resumeExecutionTimeoutIdentifier);
-	setState({ executionState: 'paused' });
+	setState({ executionAutonomyState: 'paused' });
 }
 
 function stopExecution(setState: SetState): void {
@@ -483,32 +532,34 @@ function resetExecution(setState: SetState): void {
 	clearTimeout(resumeExecutionTimeoutIdentifier);
 
 	setState((state: ApplicationState) => ({
-		activePythonCode: state.annotatedActivePythonCode,
-		consoleContent: [],
-		executionIsWaitingForInput: false,
-		executionHistory: [],
-		executionHistoryPosition: 0,
-		executionState: 'stopped'
+		activePythonCode : state.annotatedActivePythonCode,
+		consoleContent : [],
+		executionIsWaitingForInput : false,
+		executionHistory : [],
+		executionHistoryPosition : 0,
+		executionOperationState : 'stopped',
+		executionAutonomyState : 'paused',
+		executionNatureState : 'executing'
 	}));
 }
 
 function stepBackward(setState: SetState): void {
 	setState((state: ApplicationState) => ({
-		executionHistoryPosition: state.executionHistoryPosition - 1
+		executionHistoryPosition : state.executionHistoryPosition - 1,
+		executionAutonomyState : 'paused',
+		executionNatureState : 'simulating'
 	}));
 }
 
 function stepForward(getState: GetState, setState: SetState): void {
-	const state: ExecutionState = getState().executionState;
+	const state: ApplicationState = getState();
 
 	setState((state: ApplicationState) => ({
-		executionState: state.executionState === 'stopped' ?
-			'paused' : state.executionState
+		executionOperationState :
+			state.executionOperationState === 'stopped' ?
+				'operating' : state.executionOperationState,
+		executionAutonomyState : 'paused'
 	}));
 
-	if (state === 'stopped') {
-		startExecution(getState, setState);
-	} else if (state === 'paused' || state === 'finished') {
-		resumeExecution(getState, setState);
-	}
+	startOrResumeExecution(state, getState, setState);
 }

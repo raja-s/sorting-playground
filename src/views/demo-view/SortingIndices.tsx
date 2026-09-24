@@ -1,6 +1,6 @@
 
 import { useApplicationStore } from '../../state/useApplicationStore.ts';
-import { type ExecutionState } from '../../state/ApplicationState.ts';
+import { type ExecutionOperationState } from '../../state/ApplicationState.ts';
 import ExecutionCheckpoint, { type ExecutionHistory } from '../../state/ExecutionCheckpoint.ts';
 
 import {
@@ -15,9 +15,9 @@ export default function SortingIndices() {
 	const pythonCodeAnalysisResult: CodeAnalysisResult = useApplicationStore(state => state.pythonCodeAnalysisResult);
 	const executionHistory: ExecutionHistory = useApplicationStore(state => state.executionHistory);
 	const executionHistoryPosition: number = useApplicationStore(state => state.executionHistoryPosition);
-	const executionState: ExecutionState = useApplicationStore(state => state.executionState);
+	const executionOperationState: ExecutionOperationState = useApplicationStore(state => state.executionOperationState);
 
-	if (executionState === 'stopped' || executionHistory.length === 0) {
+	if (executionOperationState === 'stopped' || executionHistory.length === 0) {
 		return null;
 	}
 
