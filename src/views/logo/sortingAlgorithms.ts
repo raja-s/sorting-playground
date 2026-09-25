@@ -81,6 +81,63 @@ export function* createInsertionSorter<T>(
 	return sortingArray;
 }
 
+export function* createMergeSorter<T>(
+	elements: T[],
+	getRank: (element: T) => number
+): Sorter<T> {
+	const n = elements.length;
+	const sortingArray = [ ...elements ];
+
+	function* merge(
+		start: number,
+		middle: number,
+		end: number
+	): Generator<T[], void, void> {
+		let rightSideStart = middle + 1;
+
+		if (getRank(sortingArray[middle]) <= getRank(sortingArray[rightSideStart])) {
+			return;
+		}
+
+		let leftSideStart = start;
+		let leftSideEnd = middle;
+
+		while (leftSideStart <= leftSideEnd && rightSideStart <= end) {
+			if (getRank(sortingArray[leftSideStart]) <= getRank(sortingArray[rightSideStart])) {
+				leftSideStart++;
+				continue;
+			}
+
+			reinsert(sortingArray, rightSideStart, leftSideStart);
+			yield sortingArray;
+
+			leftSideStart++;
+			leftSideEnd++;
+			rightSideStart++;
+		}
+	}
+
+	function* mergeSort(
+		start: number,
+		end: number
+	): Generator<T[], void, void> {
+		if (start >= end) {
+			return;
+		}
+
+		const middle = start + Math.floor((end - start) / 2);
+
+		yield* mergeSort(start, middle);
+		yield* mergeSort(middle + 1, end);
+
+		yield* merge(start, middle, end);
+	}
+
+	yield* mergeSort(0, n - 1);
+
+	return sortingArray;
+}
+
 export function* createQuickSorter<T>(
 	elements: T[],
 	getRank: (element: T) => number
@@ -114,11 +171,13 @@ export function* createQuickSorter<T>(
 		start: number,
 		end: number
 	): Generator<T[], void, void> {
-		if (start < end) {
-			const pivotIndex = yield* partition(start, end);
-			yield* quickSort(start, pivotIndex - 1);
-			yield* quickSort(pivotIndex + 1, end);
+		if (start >= end) {
+			return;
 		}
+
+		const pivotIndex = yield* partition(start, end);
+		yield* quickSort(start, pivotIndex - 1);
+		yield* quickSort(pivotIndex + 1, end);
 	}
 
 	yield* quickSort(0, n - 1);

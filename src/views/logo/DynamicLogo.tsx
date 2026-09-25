@@ -12,6 +12,7 @@ import {
 	createBubbleSorter,
 	createSelectionSorter,
 	createInsertionSorter,
+	createMergeSorter,
 	createQuickSorter
 } from './sortingAlgorithms.ts';
 
@@ -67,6 +68,12 @@ const SORTER_CONFIGURATIONS: SorterConfiguration[] = [
 		pauseDuration: 100,
 		stiffness: 2000,
 		damping: 150
+	},
+	{
+		sorterCreator: createMergeSorter<CharacterEntry>,
+		pauseDuration: 80,
+		stiffness: 2200,
+		damping: 160
 	},
 	{
 		sorterCreator: createQuickSorter<CharacterEntry>,
