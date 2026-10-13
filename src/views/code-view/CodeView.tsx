@@ -17,7 +17,7 @@ export type CodeViewProps = {
 	onAnnotationReferenceButtonClick: () => void
 };
 
-export function CodeView(props: CodeViewProps) {
+export default function CodeView(props: CodeViewProps) {
 	const translate = useTranslation().t;
 
 	return (

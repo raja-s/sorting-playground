@@ -35,12 +35,13 @@ import { fileOpen, fileSave } from 'browser-fs-access';
 import { useApplicationStore } from '../../state/useApplicationStore.ts';
 import type {
 	ExecutionOperationState,
-	ExecutionAutonomyState
+	ExecutionAutonomyState,
+	DemoViewMode
 } from '../../state/ApplicationState.ts';
 
 import { ControlIconButton } from './ControlIconButton.tsx';
 
-export function ControlBar() {
+export default function ControlBar() {
 	const translate = useTranslation().t;
 
 	const pythonExecutionWorkerReady = useApplicationStore(state => state.pythonExecutionWorkerReady);
@@ -69,15 +70,19 @@ export function ControlBar() {
 	const stepBackward = useApplicationStore(state => state.stepBackward);
 	const stepForward = useApplicationStore(state => state.stepForward);
 
+	const demoViewMode: DemoViewMode = useApplicationStore(state => state.demoViewMode);
+	const setDemoViewMode = useApplicationStore(state => state.setDemoViewMode);
+
 	const barsColored: boolean = useApplicationStore(state => state.barsColored);
 	const toggleBarsColored = useApplicationStore(state => state.toggleBarsColored);
 	const focusComparedBars: boolean = useApplicationStore(state => state.focusComparedBars);
 	const toggleFocusComparedBars = useApplicationStore(state => state.toggleFocusComparedBars);
+	const onlyRevealComparedCards: boolean = useApplicationStore(state => state.onlyRevealComparedCards);
+	const toggleOnlyRevealComparedCards = useApplicationStore(state => state.toggleOnlyRevealComparedCards);
 
 	const generateShareLink = useApplicationStore(state => state.generateShareLink);
 
 	const [ shareLinkCopiedSnackbarOpen, setShareLinkCopiedSnackbarOpen ] = useState(false);
-	const [ cardsUnderDevelopmentSnackbarOpen, setCardsUnderDevelopmentSnackbarOpen ] = useState(false);
 
 	useHotkeys('mod+o', async (event) => {
 		event.preventDefault();
@@ -134,13 +139,19 @@ export function ControlBar() {
 					columnGap='10px'
 				>
 					<Tooltip title={translate('control_bar.code_controls.open_button')}>
-						<IconButton
-							onClick={async () => {
-								await openFileToActivePythonCode(setActivePythonCode, bumpEditorReloadCodeTriggerValue);
-							}}
-						>
-							<FolderIcon fontSize='large' />
-						</IconButton>
+						<span>
+							<IconButton
+								disabled={executionOperationState !== 'stopped'}
+								onClick={async () => {
+									await openFileToActivePythonCode(
+										setActivePythonCode,
+										bumpEditorReloadCodeTriggerValue
+									);
+								}}
+							>
+								<FolderIcon fontSize='large' />
+							</IconButton>
+						</span>
 					</Tooltip>
 					<Tooltip title={translate('control_bar.code_controls.download_button')}>
 						<IconButton
@@ -289,48 +300,54 @@ export function ControlBar() {
 					<Select
 						variant='filled'
 						hiddenLabel
-						value='bars'
+						value={demoViewMode}
+						disabled={executionOperationState !== 'stopped'}
 					>
-						<MenuItem value='bars'>{translate('control_bar.sorting_element_type_dropdown.bars')}</MenuItem>
+						<MenuItem
+							value='bars'
+							onClick={() => { setDemoViewMode('bars'); }}
+						>{translate('control_bar.sorting_element_type_dropdown.bars')}</MenuItem>
 						<MenuItem
 							value='cards'
-							onClick={() => { setCardsUnderDevelopmentSnackbarOpen(true); }}
+							onClick={() => { setDemoViewMode('cards'); }}
 						>{translate('control_bar.sorting_element_type_dropdown.cards')}</MenuItem>
 					</Select>
-					{/* ---------------------------------------------------- */}
-					{/* Remove once cards sorting scene development complete */}
-					<Snackbar
-						open={cardsUnderDevelopmentSnackbarOpen}
-						anchorOrigin={{ vertical: 'top', horizontal: 'right' }}
-						autoHideDuration={5000}
-						onClose={() => { setCardsUnderDevelopmentSnackbarOpen(false); }}
-					>
-						<Alert
-							severity='info'
-							variant='filled'
-						>{translate('control_bar.sorting_element_type_dropdown.cards_under_development_message')}</Alert>
-					</Snackbar>
-					{/* ---------------------------------------------------- */}
-					<FormControlLabel
-						label={translate('control_bar.sorting_element_type_specific_controls.bar_controls.colored')}
-						control={
-							<Checkbox
-								checked={barsColored}
-								onChange={toggleBarsColored}
+					{demoViewMode === 'bars' &&
+						<>
+							<FormControlLabel
+								label={translate('control_bar.sorting_element_type_specific_controls.bar_controls.colored')}
+								control={
+									<Checkbox
+										checked={barsColored}
+										onChange={toggleBarsColored}
+									/>
+								}
+								sx={{ marginLeft: 0 }}
 							/>
-						}
-						sx={{ marginLeft: 0 }}
-					/>
-					<FormControlLabel
-						label={translate('control_bar.sorting_element_type_specific_controls.bar_controls.focus_compared_elements')}
-						control={
-							<Checkbox
-								checked={focusComparedBars}
-								onChange={toggleFocusComparedBars}
+							<FormControlLabel
+								label={translate('control_bar.sorting_element_type_specific_controls.bar_controls.focus_compared_elements')}
+								control={
+									<Checkbox
+										checked={focusComparedBars}
+										onChange={toggleFocusComparedBars}
+									/>
+								}
+								sx={{ marginLeft: 0 }}
 							/>
-						}
-						sx={{ marginLeft: 0 }}
-					/>
+						</>
+					}
+					{demoViewMode === 'cards' &&
+						<FormControlLabel
+							label={translate('control_bar.sorting_element_type_specific_controls.card_controls.only_reveal_compared_cards')}
+							control={
+								<Checkbox
+									checked={onlyRevealComparedCards}
+									onChange={toggleOnlyRevealComparedCards}
+								/>
+							}
+							sx={{ marginLeft: 0 }}
+						/>
+					}
 				</Stack>
 			</Stack>
 		</Grid>

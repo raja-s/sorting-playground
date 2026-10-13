@@ -83,15 +83,16 @@
 		},
 		"sorting_element_type_dropdown": {
 			"bars": "Bars",
-			"cards": "Cards",
-			"cards_under_development_message": "The cards visualization is under development."
+			"cards": "Cards"
 		},
 		"sorting_element_type_specific_controls": {
 			"bar_controls": {
 				"colored": "Colored",
 				"focus_compared_elements": "Focus compared elements"
 			},
-			"card_controls": {}
+			"card_controls": {
+				"only_reveal_compared_cards": "Only reveal compared cards"
+			}
 		}
 	}
 }

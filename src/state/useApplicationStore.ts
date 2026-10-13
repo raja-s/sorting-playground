@@ -13,10 +13,12 @@ import SimulationAnnotation from '../code-analysis/SimulationAnnotation.ts';
 import { analyzePythonCode } from '../code-analysis/codeAnalysis.ts';
 
 import type ApplicationState from './ApplicationState.ts';
-import {
-	type ConsoleContent,
-	type ConsoleContentType,
+import type {
+	ConsoleContent,
+	ConsoleContentType,
+	DemoViewMode
 } from './ApplicationState.ts';
+import { type SortingList, determineBounds } from './SortingList.ts';
 import ExecutionCheckpoint from './ExecutionCheckpoint.ts';
 
 type GetState = () => ApplicationState;
@@ -40,14 +42,19 @@ export const useApplicationStore =
 				(setState: SetState, getState: GetState) => ({
 					sortingListVariableName: '',
 					sortingList: [],
+					sortingListBounds: { minimum: 0, maximum: 0 },
 
 					setSortingListData: (name: string, list: unknown[]) => {
-						setState({
-							sortingListVariableName: name,
-							sortingList: list.map((value: unknown, index: number) => ({
+						const sortingList: SortingList =
+							list.map((value: unknown, index: number) => ({
 								identifier: index,
 								value
-							}))
+							}));
+
+						setState({
+							sortingListVariableName: name,
+							sortingList: sortingList,
+							sortingListBounds: determineBounds(sortingList)
 						});
 						reassessReadyToExecuteCode(setState);
 					},
@@ -114,14 +121,30 @@ export const useApplicationStore =
 					stepBackward: () => { stepBackward(setState); },
 					stepForward: () => { stepForward(getState, setState); },
 
+					demoViewMode: 'bars',
+					setDemoViewMode: (mode: DemoViewMode) => {
+						setState({ demoViewMode : mode });
+					},
+
 					barsColored: true,
 					toggleBarsColored: () => {
-						setState((state: ApplicationState) => ({ barsColored: !state.barsColored }));
+						setState((state: ApplicationState) => ({
+							barsColored: !state.barsColored
+						}));
 					},
 
 					focusComparedBars: true,
 					toggleFocusComparedBars: () => {
-						setState((state: ApplicationState) => ({ focusComparedBars: !state.focusComparedBars }));
+						setState((state: ApplicationState) => ({
+							focusComparedBars: !state.focusComparedBars
+						}));
+					},
+
+					onlyRevealComparedCards: true,
+					toggleOnlyRevealComparedCards: () => {
+						setState((state: ApplicationState) => ({
+							onlyRevealComparedCards: !state.onlyRevealComparedCards
+						}));
 					},
 
 					generateShareLink: () =>
@@ -160,10 +183,13 @@ function createDataForShareLink(state: ApplicationState): Partial<ApplicationSta
 	return {
 		sortingListVariableName: state.sortingListVariableName,
 		sortingList:             state.sortingList,
+		sortingListBounds:       state.sortingListBounds,
 		activePythonCode:        pythonCode,
 		executionSpeed:          state.executionSpeed,
+		demoViewMode:            state.demoViewMode,
 		barsColored:             state.barsColored,
-		focusComparedBars:       state.focusComparedBars
+		focusComparedBars:       state.focusComparedBars,
+		onlyRevealComparedCards: state.onlyRevealComparedCards
 	};
 }
 

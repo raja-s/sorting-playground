@@ -2,7 +2,7 @@
 import { type CodeAnalysisResult } from '../code-analysis/codeAnalysis.ts';
 
 import { type ExecutionHistory } from './ExecutionCheckpoint.ts';
-import { type SortingList } from './SortingList.ts';
+import type { SortingList, SortingListBounds } from './SortingList.ts';
 
 export type ConsoleContentType =
 	'standard_output' | 'line_break' | 'prompt_text' | 'user_input' | 'error';
@@ -17,9 +17,12 @@ export type ExecutionOperationState = 'stopped' | 'operating' | 'finished';
 export type ExecutionAutonomyState = 'paused' | 'running';
 export type ExecutionNatureState = 'executing' | 'simulating';
 
+export type DemoViewMode = 'bars' | 'cards';
+
 export default interface ApplicationState {
 	sortingListVariableName: string;
 	sortingList: SortingList;
+	sortingListBounds: SortingListBounds | null;
 	setSortingListData: (name: string, list: unknown[]) => void;
 
 	pythonExecutionWorkerReady: boolean;
@@ -59,11 +62,17 @@ export default interface ApplicationState {
 	stepBackward: () => void;
 	stepForward: () => void;
 
+	demoViewMode: DemoViewMode;
+	setDemoViewMode: (mode: DemoViewMode) => void;
+
 	barsColored: boolean;
 	toggleBarsColored: () => void;
 
 	focusComparedBars: boolean;
 	toggleFocusComparedBars: () => void;
+
+	onlyRevealComparedCards: boolean;
+	toggleOnlyRevealComparedCards: () => void;
 
 	generateShareLink: () => string;
 }

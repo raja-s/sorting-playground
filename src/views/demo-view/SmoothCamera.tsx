@@ -9,7 +9,7 @@ type SmoothCameraProps = {
 	sortingSceneGroupRef: RefObject<THREE.Group>
 };
 
-export function SmoothCamera(props: SmoothCameraProps) {
+export default function SmoothCamera(props: SmoothCameraProps) {
 	const { camera, size: canvasSize } = useThree();
 
 	const aspectRatio = canvasSize.width / canvasSize.height;
@@ -45,7 +45,7 @@ export function SmoothCamera(props: SmoothCameraProps) {
 		const targetPosition = new THREE.Vector3(
 			sortingSceneGroupCenter.x,
 			(sortingSceneGroupCenter.y + 2 * sceneGroupCenter.y) / 3,
-			1
+			100
 		);
 		const targetZoom = Math.min(900 / Math.max(sortingSceneGroupSize.x / aspectRatio, sceneGroupSize.y), 75);
 

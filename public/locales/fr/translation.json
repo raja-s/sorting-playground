@@ -83,15 +83,16 @@
 		},
 		"sorting_element_type_dropdown": {
 			"bars": "Barres",
-			"cards": "Cartes",
-			"cards_under_development_message": "La visualisation de cartes est en cours de développement."
+			"cards": "Cartes"
 		},
 		"sorting_element_type_specific_controls": {
 			"bar_controls": {
 				"colored": "Colorées",
 				"focus_compared_elements": "Mettre en évidence les éléments comparés"
 			},
-			"card_controls": {}
+			"card_controls": {
+				"only_reveal_compared_cards": "Dévoiler uniquement les cartes comparées"
+			}
 		}
 	}
 }

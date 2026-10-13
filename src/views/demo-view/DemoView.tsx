@@ -7,15 +7,21 @@ import * as THREE from 'three';
 import { Canvas } from '@react-three/fiber';
 import { Text, useFont } from '@react-three/drei';
 
-import { BarsSortingScene } from './BarsSortingScene.tsx';
-import { SmoothCamera } from './SmoothCamera.tsx';
+import { useApplicationStore } from '../../state/useApplicationStore.ts';
+import type { DemoViewMode } from '../../state/ApplicationState.ts';
+
+import BarsSortingScene from './BarsSortingScene.tsx';
+import CardsSortingScene from './CardsSortingScene.tsx';
+import SmoothCamera from './SmoothCamera.tsx';
 import SortingIndices from './SortingIndices.tsx';
 
 import { JETBRAINS_MONO_FONT_PATH } from './fonts.ts';
 
 useFont.preload(JETBRAINS_MONO_FONT_PATH);
 
-export function DemoView() {
+export default function DemoView() {
+	const demoViewMode: DemoViewMode = useApplicationStore(state => state.demoViewMode);
+
 	const sceneGroupRef: RefObject<THREE.Group> = useRef<THREE.Group>();
 	const sortingSceneGroupRef: RefObject<THREE.Group> = useRef<THREE.Group>();
 
@@ -36,7 +42,8 @@ export function DemoView() {
 					<ambientLight />
 					<group ref={sceneGroupRef}>
 						<group ref={sortingSceneGroupRef}>
-							<BarsSortingScene />
+							{demoViewMode === 'bars' && <BarsSortingScene />}
+							{demoViewMode === 'cards' && <CardsSortingScene />}
 						</group>
 						<SortingIndices />
 					</group>

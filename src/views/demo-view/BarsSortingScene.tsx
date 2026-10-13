@@ -10,24 +10,20 @@ import * as THREE from 'three';
 
 import { type ExecutionOperationState } from '../../state/ApplicationState.ts';
 import { useApplicationStore } from '../../state/useApplicationStore.ts';
-import { type SortingElement, type SortingList } from '../../state/SortingList.ts';
+import type { SortingElement, SortingList, SortingListBounds } from '../../state/SortingList.ts';
 import ExecutionCheckpoint, { type ExecutionHistory } from '../../state/ExecutionCheckpoint.ts';
 
-import { type CodeAnalysisResult, type SortingListComparison } from '../../code-analysis/codeAnalysis.ts';
+import { type CodeAnalysisResult } from '../../code-analysis/codeAnalysis.ts';
 
-type Bounds = {
-	minimum: number,
-	maximum: number
-};
+import {
+	type ActiveSortingListComparison,
+	STABILIZATION_THRESHOLD,
+	getActiveComparison
+} from './sortingSceneUtilities.ts';
 
 type Bar = {
 	identifier: number,
 	groupElement: THREE.Group
-};
-
-type ActiveSortingListComparison = {
-	leftHandSideSortingListIdentifier?: number,
-	rightHandSideSortingListIdentifier?: number
 };
 
 type SimulationState = {
@@ -36,13 +32,15 @@ type SimulationState = {
 	targetOpacities: { [identifier: number]: number }
 };
 
-const STABILIZATION_THRESHOLD: number = 10e-4;
+type BarAndLabelColors = {
+	bar: string,
+	label: string
+};
 
-export function BarsSortingScene() {
+export default function BarsSortingScene() {
 	const sortingList: SortingList = useApplicationStore(state => state.sortingList);
+	const sortingListBounds: SortingListBounds | null = useApplicationStore(state => state.sortingListBounds);
 	const barsColored: boolean = useApplicationStore(state => state.barsColored);
-
-	const bounds: Bounds | null = determineBounds(sortingList);
 
 	const simulationStateRef: RefObject<SimulationState> = useRef({
 		bars: {},
@@ -109,23 +107,25 @@ export function BarsSortingScene() {
 		handleFrame(simulationStateRef.current, delta);
 	});
 
-	return bounds == null ? null : (
+	return sortingListBounds == null ? null : (
 		<group>
 			{sortingList.map((element, index) =>
-				createBar(registerBar, element, index, bounds.maximum, barsColored)
+				createBar(registerBar, element, index, sortingListBounds, barsColored)
 			)}
 		</group>
-	)
+	);
 }
 
 function createBar(
 	registerBar: (identifier: number, barGroup: THREE.Group) => void,
 	element: SortingElement,
 	index: number,
-	maximumValue: number,
+	sortingListBounds: SortingListBounds,
 	colored: boolean
 ): React.JSX.Element {
 	const value: number = element.value as number;
+	const colors: BarAndLabelColors =
+		barAndLabelColors(value, sortingListBounds, colored);
 
 	return (
 		<group
@@ -139,7 +139,7 @@ function createBar(
 				<planeGeometry args={[0.9, value]} />
 				<meshBasicMaterial
 					toneMapped={false}
-					color={barColor(value, maximumValue, colored)}
+					color={colors.bar}
 					transparent={true}
 					opacity={1}
 				/>
@@ -152,96 +152,13 @@ function createBar(
 				{value}
 				<meshBasicMaterial
 					toneMapped={false}
-					color={labelColor(value, maximumValue, colored)}
+					color={colors.label}
 					transparent={true}
 					opacity={1}
 				/>
 			</Text>
 		</group>
 	);
-}
-
-function determineBounds(sortingList: SortingList): Bounds | null {
-	if (sortingList.length === 0) {
-		return { minimum : 0 , maximum : 0 };
-	}
-
-	if (!Number.isFinite(sortingList[0].value)) {
-		return null;
-	}
-
-	let minimum: number = sortingList[0].value as number;
-	let maximum: number = sortingList[0].value as number;
-
-	for (const element of sortingList) {
-		if (!Number.isFinite(element.value)) {
-			return null;
-		}
-
-		const value: number = element.value as number;
-
-		if (value < minimum) {
-			minimum = value;
-		}
-		if (value > maximum) {
-			maximum = value;
-		}
-	}
-
-	return { minimum , maximum };
-}
-
-function getActiveComparison(
-	pythonCodeAnalysisResult: CodeAnalysisResult,
-	executionCheckpoint: ExecutionCheckpoint
-): ActiveSortingListComparison | null {
-	if (
-		executionCheckpoint.lineRange == null ||
-		!(executionCheckpoint.lineRange.start in pythonCodeAnalysisResult.comparisonMap)
-	) {
-		return null;
-	}
-
-	const comparison: SortingListComparison =
-		pythonCodeAnalysisResult.comparisonMap[executionCheckpoint.lineRange.start];
-
-	const activeComparison: Partial<ActiveSortingListComparison> = {};
-
-	if (comparison.leftHandSideSortingListIndexExpression != null) {
-		const leftHandSideSortingListIndex =
-			evaluateIndexExpression(
-				executionCheckpoint,
-				comparison.leftHandSideSortingListIndexExpression
-			);
-		activeComparison.leftHandSideSortingListIdentifier =
-			executionCheckpoint.sortingList[leftHandSideSortingListIndex].identifier;
-	}
-	if (comparison.rightHandSideSortingListIndexExpression != null) {
-		const rightHandSideSortingListIndex =
-			evaluateIndexExpression(
-				executionCheckpoint,
-				comparison.rightHandSideSortingListIndexExpression
-			);
-		activeComparison.rightHandSideSortingListIdentifier =
-			executionCheckpoint.sortingList[rightHandSideSortingListIndex].identifier;
-	}
-
-	return activeComparison;
-}
-
-function evaluateIndexExpression(
-	executionCheckpoint: ExecutionCheckpoint,
-	indexExpression: string
-) {
-	let evaluationCode = '';
-
-	for (const variable in executionCheckpoint.scopeLocals) {
-		evaluationCode += `let ${variable} = ${JSON.stringify(executionCheckpoint.scopeLocals[variable])};\n`;
-	}
-
-	evaluationCode += indexExpression;
-
-	return eval(evaluationCode);
 }
 
 function handleStateChangeExecutionRunning(
@@ -359,7 +276,10 @@ function handleFrame(simulationState: SimulationState, delta: number): void {
 	}
 }
 
-function barIsFocused(barIdentifier: number, activeComparison: ActiveSortingListComparison): boolean {
+function barIsFocused(
+	barIdentifier: number,
+	activeComparison: ActiveSortingListComparison
+): boolean {
 	return barIdentifier === activeComparison.leftHandSideSortingListIdentifier ||
 		barIdentifier === activeComparison.rightHandSideSortingListIdentifier;
 }
@@ -373,22 +293,19 @@ function setBarOpacity(barGroup: THREE.Group, opacity: number): void {
 	((barGroup.children[1] as THREE.Mesh).material as THREE.Material).opacity = opacity;
 }
 
-function barColor(
+function barAndLabelColors(
 	value: number,
-	maximumValue: number,
+	sortingListBounds: SortingListBounds,
 	colored: boolean
-): string {
-	const hue = ((value - 1) / maximumValue) * 360;
-	const saturation = colored ? 100 : 0;
-	return `hsl(${hue}, ${saturation}%, 65%)`;
-}
+): BarAndLabelColors {
+	const rangeLength = sortingListBounds.maximum - sortingListBounds.minimum + 1;
+	const hue = ((value - sortingListBounds.minimum) / rangeLength) * 360;
 
-function labelColor(
-	value: number,
-	maximumValue: number,
-	colored: boolean
-): string {
-	const hue = ((value - 1) / maximumValue) * 360;
-	const saturation = colored ? 80 : 0;
-	return `hsl(${hue}, ${saturation}%, 40%)`;
+	const barSaturation   = colored ? 100 : 0;
+	const labelSaturation = colored ?  80 : 0;
+
+	return {
+		bar:   `hsl(${hue}, ${barSaturation}%,   65%)`,
+		label: `hsl(${hue}, ${labelSaturation}%, 40%)`
+	};
 }
