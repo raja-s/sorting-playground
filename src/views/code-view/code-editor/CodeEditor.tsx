@@ -245,7 +245,10 @@ function handleExecutionUpdate(
 	} else {
 		effectPosition = {
 			from: transaction.state.doc.line(executionCheckpoint.lineRange.start).from,
-			to: transaction.state.doc.line(executionCheckpoint.lineRange.end).to
+			to: transaction.state.doc.line(
+				executionHistoryPosition === 0 ?
+					executionCheckpoint.lineRange.start : executionCheckpoint.lineRange.end
+			).to
 		};
 
 		effect = executionHistoryPosition === 0 ?
