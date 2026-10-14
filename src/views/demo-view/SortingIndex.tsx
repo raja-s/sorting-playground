@@ -8,24 +8,17 @@ import { JETBRAINS_MONO_FONT_PATH } from './fonts.ts';
 
 export type SortingIndexProps = {
 	variable: Variable,
-	valueGetter: () => number,
+	value: number,
 	level: number,
 	variableCount: number
 };
 
 export default function SortingIndex(props: SortingIndexProps) {
-	let value: number;
-
-	try {
-		value = props.valueGetter();
-	} catch (error) {
-		return null;
-	}
-
 	const color: string = levelColor(props.level, props.variableCount);
+
 	return (
 		<group
-			position={[value, 0.5 - props.level * 1.2, 0]}
+			position={[props.value, 0.5 - props.level * 1.2, 0]}
 		>
 			<mesh
 				rotation={[0, 0, Math.PI / 2]}
@@ -39,7 +32,7 @@ export default function SortingIndex(props: SortingIndexProps) {
 				font={JETBRAINS_MONO_FONT_PATH}
 				fontSize={0.4}
 				color={color}
-			>{props.variable.name} = {value}</Text>
+			>{props.variable.name} = {props.value}</Text>
 		</group>
 	);
 }

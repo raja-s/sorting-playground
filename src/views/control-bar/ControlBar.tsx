@@ -1,6 +1,8 @@
 
 import { useState } from 'react';
 
+import { useShallow } from 'zustand/shallow';
+
 import Alert from '@mui/material/Alert';
 import Checkbox from '@mui/material/Checkbox';
 import CircularProgress from '@mui/material/CircularProgress';
@@ -38,11 +40,22 @@ import type {
 	ExecutionAutonomyState,
 	DemoViewMode
 } from '../../state/ApplicationState.ts';
+import { type ExecutionHistory } from '../../state/ExecutionCheckpoint.ts';
 
 import { ControlIconButton } from './ControlIconButton.tsx';
 
 export default function ControlBar() {
 	const translate = useTranslation().t;
+
+	const {
+		executionHistory
+	}: {
+		executionHistory: ExecutionHistory
+	} = useApplicationStore(
+		useShallow(state => ({
+			executionHistory : state.executionHistory
+		}))
+	);
 
 	const pythonExecutionWorkerReady = useApplicationStore(state => state.pythonExecutionWorkerReady);
 	const readyToExecuteCode = useApplicationStore(state => state.readyToExecuteCode);
@@ -54,7 +67,6 @@ export default function ControlBar() {
 
 	const executionIsWaitingForInput = useApplicationStore(state => state.executionIsWaitingForInput);
 
-	const executionHistory = useApplicationStore(state => state.executionHistory);
 	const executionHistoryPosition: number = useApplicationStore(state => state.executionHistoryPosition);
 
 	const executionSpeed: number = useApplicationStore(state => state.executionSpeed);
@@ -86,7 +98,11 @@ export default function ControlBar() {
 
 	useHotkeys('mod+o', async (event) => {
 		event.preventDefault();
-		await openFileToActivePythonCode(setActivePythonCode, bumpEditorReloadCodeTriggerValue);
+		await openFileToActivePythonCode(
+			executionOperationState,
+			setActivePythonCode,
+			bumpEditorReloadCodeTriggerValue
+		);
 	}, {
 		enableOnContentEditable: true,
 		enableOnFormTags: true
@@ -144,6 +160,7 @@ export default function ControlBar() {
 								disabled={executionOperationState !== 'stopped'}
 								onClick={async () => {
 									await openFileToActivePythonCode(
+										executionOperationState,
 										setActivePythonCode,
 										bumpEditorReloadCodeTriggerValue
 									);
@@ -355,9 +372,14 @@ export default function ControlBar() {
 }
 
 async function openFileToActivePythonCode(
+	executionOperationState: ExecutionOperationState,
 	setActivePythonCode: (code: string) => void,
 	bumpEditorReloadCodeTriggerValue: () => void
 ): Promise<void> {
+	if (executionOperationState !== 'stopped') {
+		return;
+	}
+
 	const blob: Blob = await fileOpen({
 		mimeTypes: [ 'text/x-python' ],
 		extensions: [ '.py' ],

@@ -1,5 +1,6 @@
 
 import { type RefObject, Suspense, useRef } from 'react';
+import * as React from 'react';
 
 import Grid from '@mui/material/Grid';
 
@@ -19,7 +20,7 @@ import { JETBRAINS_MONO_FONT_PATH } from './fonts.ts';
 
 useFont.preload(JETBRAINS_MONO_FONT_PATH);
 
-export default function DemoView() {
+function DemoView() {
 	const demoViewMode: DemoViewMode = useApplicationStore(state => state.demoViewMode);
 
 	const sceneGroupRef: RefObject<THREE.Group> = useRef<THREE.Group>();
@@ -53,6 +54,8 @@ export default function DemoView() {
 		</Grid>
 	);
 }
+
+export default React.memo(DemoView);
 
 function getDummyText() {
 	// A hack to avoid flickering when the first text appears

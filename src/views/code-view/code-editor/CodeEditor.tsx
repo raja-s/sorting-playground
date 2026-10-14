@@ -2,6 +2,8 @@
 import * as React from 'react';
 import { type RefObject, useEffect, useMemo, useRef, useState } from 'react';
 
+import { shallow } from 'zustand/shallow';
+
 import { useTranslation } from 'react-i18next';
 
 import { EditorView, ViewUpdate, keymap } from '@codemirror/view';
@@ -13,12 +15,12 @@ import { python } from '@codemirror/lang-python';
 import CodeMirrorEditor from '@uiw/react-codemirror';
 
 import { useApplicationStore } from '../../../state/useApplicationStore.ts';
-import { type ExecutionOperationState } from '../../../state/ApplicationState.ts';
+import type { ApplicationState, ExecutionOperationState } from '../../../state/ApplicationState.ts';
 import ExecutionCheckpoint, { type ExecutionHistory } from '../../../state/ExecutionCheckpoint.ts';
 
-import {
-	type Variable,
-	type CodeAnalysisResult
+import type {
+	Variable,
+	CodeAnalysisResult
 } from '../../../code-analysis/codeAnalysis.ts';
 import { findSortingList } from '../../../code-analysis/sortingListLocation.ts';
 
@@ -39,38 +41,19 @@ type State = {
 	longestLineLength: number
 };
 
-const startingSortingList: number[] = [3, 7, 1, 5, 2, 8, 9, 4, 6];
-
 export default function CodeEditor() {
 	const muiTheme: MuiTheme = useTheme();
 
 	const editorViewRef: RefObject<EditorView> = useRef(null as unknown as EditorView);
 
 	const setSortingListData = useApplicationStore(state => state.setSortingListData);
-	const activePythonCode = useApplicationStore(state => state.activePythonCode);
 	const setActivePythonCode = useApplicationStore(state => state.setActivePythonCode);
-	const editorReloadCodeTriggerValue = useApplicationStore(state => state.editorReloadCodeTriggerValue);
 	const bumpEditorReloadCodeTriggerValue = useApplicationStore(state => state.bumpEditorReloadCodeTriggerValue);
-	const pythonCodeAnalysisResult = useApplicationStore(state => state.pythonCodeAnalysisResult);
-	const executionHistory = useApplicationStore(state => state.executionHistory);
-	const executionHistoryPosition = useApplicationStore(state => state.executionHistoryPosition);
 	const executionOperationState = useApplicationStore(state => state.executionOperationState);
 
-	const translate = useTranslation().t;
-
-	const startingSortingListVariableName: string = translate('code.starting_list_variable_name');
-	const startingCode: string = `${startingSortingListVariableName} = [${startingSortingList.join(', ')}] #l#
-
-n = len(${startingSortingListVariableName}) #t#
-
-${translate('code.to_do_comment')}
-`;
-
-	const startingCodeLines: string[] = startingCode.split('\n');
-
 	const [state, setState] = useState<State>({
-		lineCount: startingCodeLines.length,
-		longestLineLength: Math.max(...startingCodeLines.map(line => line.length))
+		lineCount : 1,
+		longestLineLength : 0
 	});
 
 	const updateListener: Extension =
@@ -85,26 +68,45 @@ ${translate('code.to_do_comment')}
 		});
 
 	useEffect(() => {
-		if (activePythonCode === '') {
-			setActivePythonCode(startingCode);
-			setSortingListData(startingSortingListVariableName, startingSortingList);
-		}
+		const unsubscribe = useApplicationStore.subscribe(
+			state => state.editorReloadCodeTriggerValue,
+			() => {
+				setEntireEditorCode(
+					editorViewRef.current,
+					useApplicationStore.getState().activePythonCode
+				);
+			}
+		);
+		return unsubscribe;
 	}, []);
 
 	useEffect(() => {
-		handleExecutionUpdate(
-			editorViewRef.current,
-			activePythonCode,
-			pythonCodeAnalysisResult,
-			executionOperationState,
-			executionHistory,
-			executionHistoryPosition
-		);
-	}, [ executionHistory, executionHistoryPosition, executionOperationState ]);
+		const unsubscribe = useApplicationStore.subscribe(
+			state => [
+				state.executionHistory,
+				state.executionHistoryPosition,
+				state.executionOperationState
+			] as const,
+			([
+				executionHistory,
+				executionHistoryPosition,
+				executionOperationState
+			]) => {
+				const state: ApplicationState = useApplicationStore.getState();
 
-	useEffect(() => {
-		setEntireEditorCode(editorViewRef.current, activePythonCode);
-	}, [ editorReloadCodeTriggerValue ]);
+				handleExecutionUpdate(
+					editorViewRef.current,
+					state.activePythonCode,
+					state.pythonCodeAnalysisResult,
+					executionOperationState,
+					executionHistory,
+					executionHistoryPosition
+				);
+			},
+			{ equalityFn: shallow }
+		);
+		return unsubscribe;
+	}, []);
 
 	const extensions = useMemo(() => [
 		python(),
@@ -117,7 +119,7 @@ ${translate('code.to_do_comment')}
 		EditorView.editorAttributes.of({
 			class: executionOperationState !== 'stopped' ? 'is-executing' : ''
 		})
-	], [muiTheme, state, executionOperationState]);
+	], [ muiTheme, state, executionOperationState ]);
 
 	return (
 		<CodeMirrorEditor
@@ -126,7 +128,6 @@ ${translate('code.to_do_comment')}
 				editorViewRef.current = view;
 				bumpEditorReloadCodeTriggerValue();
 			}}
-			value={startingCode}
 			readOnly={executionOperationState !== 'stopped'}
 			editable={executionOperationState === 'stopped'}
 			basicSetup={{ foldGutter : false }}
@@ -189,14 +190,16 @@ function setEntireEditorCode(
 		return;
 	}
 
-	editorView.dispatch({
-		effects: clearExecutionLine.of(null),
-		changes: {
-			from: 0,
-			to: editorView.state.doc.length,
-			insert: code
-		}
-	});
+	setTimeout(() => {
+		editorView.dispatch({
+			effects: clearExecutionLine.of(null),
+			changes: {
+				from: 0,
+				to: editorView.state.doc.length,
+				insert: code
+			}
+		});
+	}, 0);
 }
 
 function handleExecutionUpdate(

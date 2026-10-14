@@ -45,18 +45,7 @@ export const useApplicationStore =
 					sortingListBounds: { minimum: 0, maximum: 0 },
 
 					setSortingListData: (name: string, list: unknown[]) => {
-						const sortingList: SortingList =
-							list.map((value: unknown, index: number) => ({
-								identifier: index,
-								value
-							}));
-
-						setState({
-							sortingListVariableName: name,
-							sortingList: sortingList,
-							sortingListBounds: determineBounds(sortingList)
-						});
-						reassessReadyToExecuteCode(setState);
+						checkAndSetSortingListData(name, list, getState, setState);
 					},
 
 					pythonExecutionWorkerReady: false,
@@ -164,26 +153,11 @@ export const useApplicationStore =
 		)
 	);
 
-if (useApplicationStore.persist.hasHydrated()) {
-	handleHydrationFromUrlComplete(useApplicationStore.getState());
-} else {
-	useApplicationStore.persist.onFinishHydration((state: ApplicationState) => {
-		handleHydrationFromUrlComplete(state);
-	});
-}
-
-function handleHydrationFromUrlComplete(state: ApplicationState): void {
-	state.bumpEditorReloadCodeTriggerValue();
-}
-
 function createDataForShareLink(state: ApplicationState): Partial<ApplicationState> {
 	const pythonCode: string = state.executionOperationState === 'stopped' ?
 		state.activePythonCode : state.annotatedActivePythonCode;
 
 	return {
-		sortingListVariableName: state.sortingListVariableName,
-		sortingList:             state.sortingList,
-		sortingListBounds:       state.sortingListBounds,
 		activePythonCode:        pythonCode,
 		executionSpeed:          state.executionSpeed,
 		demoViewMode:            state.demoViewMode,
@@ -215,6 +189,49 @@ function delayForExecutionSpeed(speed: number): number {
 		case  1: return 60000;
 		default: return  3000;
 	}
+}
+
+function checkAndSetSortingListData(
+	name: string,
+	list: unknown[],
+	getState: GetState,
+	setState: SetState
+) {
+	const state: ApplicationState = getState();
+
+	if (name !== state.sortingListVariableName ||
+		list.length !== state.sortingList.length)
+	{
+		setSortingListData(name, list, setState);
+		return;
+	}
+
+	for (let i = 0 ; i < list.length ; i++) {
+		if (list[i] !== state.sortingList[i].value) {
+			setSortingListData(name, list, setState);
+			return;
+		}
+	}
+
+}
+
+function setSortingListData(
+	name: string,
+	list: unknown[],
+	setState: SetState
+) {
+	const sortingList: SortingList =
+		list.map((value: unknown, index: number) => ({
+			identifier: index,
+			value
+		}));
+
+	setState({
+		sortingListVariableName: name,
+		sortingList: sortingList,
+		sortingListBounds: determineBounds(sortingList)
+	});
+	reassessReadyToExecuteCode(setState);
 }
 
 function initializePythonExecutionWorker(

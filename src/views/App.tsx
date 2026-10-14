@@ -11,6 +11,8 @@ import GuidedTour from './guided-tour/GuidedTour.tsx';
 import AnnotationReferenceDialog from './annotation-reference-dialog/AnnotationReferenceDialog.tsx';
 import SplashDialogAndTopLogo from './SplashDialogAndTopLogo.tsx';
 
+import '../state/startup.ts';
+
 type State = {
 	guidedTourIsOn: boolean,
 	annotationReferenceIsOpen: boolean

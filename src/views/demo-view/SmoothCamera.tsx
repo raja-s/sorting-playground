@@ -1,5 +1,6 @@
 
 import { type RefObject, useEffect } from 'react';
+import * as React from 'react';
 
 import { useFrame, useThree } from '@react-three/fiber';
 import * as THREE from 'three';
@@ -9,7 +10,7 @@ type SmoothCameraProps = {
 	sortingSceneGroupRef: RefObject<THREE.Group>
 };
 
-export default function SmoothCamera(props: SmoothCameraProps) {
+function SmoothCamera(props: SmoothCameraProps) {
 	const { camera, size: canvasSize } = useThree();
 
 	const aspectRatio = canvasSize.width / canvasSize.height;
@@ -59,3 +60,5 @@ export default function SmoothCamera(props: SmoothCameraProps) {
 
 	return null;
 }
+
+export default React.memo(SmoothCamera);

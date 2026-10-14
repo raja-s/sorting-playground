@@ -1,11 +1,14 @@
 
 import { useEffect, useRef } from 'react';
 
+import { useShallow } from 'zustand/shallow';
+
 import { useApplicationStore } from '../../state/useApplicationStore.ts';
-import {
-	type ConsoleContent,
-	type ConsoleContentType
+import type {
+	ConsoleContent,
+	ConsoleContentType
 } from '../../state/ApplicationState.ts';
+import { type ExecutionHistory } from '../../state/ExecutionCheckpoint.ts';
 
 import Stack from '@mui/material/Stack';
 import TextField from '@mui/material/TextField';
@@ -20,10 +23,21 @@ const COLORS: Record<ConsoleContentType, string> = {
 };
 
 export default function Console() {
-	const consoleContent = useApplicationStore(state => state.consoleContent);
+	const {
+		consoleContent,
+		executionHistory
+	}: {
+		consoleContent: ConsoleContent,
+		executionHistory: ExecutionHistory
+	} = useApplicationStore(
+		useShallow(state => ({
+			consoleContent : state.consoleContent,
+			executionHistory : state.executionHistory
+		}))
+	);
+
 	const executionIsWaitingForInput = useApplicationStore(state => state.executionIsWaitingForInput);
 	const submitConsoleInput = useApplicationStore(state => state.submitConsoleInput);
-	const executionHistory = useApplicationStore(state => state.executionHistory);
 	const executionHistoryPosition = useApplicationStore(state => state.executionHistoryPosition);
 
 	const inputRef = useRef<HTMLInputElement>(null);

@@ -1,4 +1,8 @@
 
+import * as React from 'react';
+
+import { useShallow } from 'zustand/shallow';
+
 import { useApplicationStore } from '../../state/useApplicationStore.ts';
 import { type ExecutionOperationState } from '../../state/ApplicationState.ts';
 import ExecutionCheckpoint, { type ExecutionHistory } from '../../state/ExecutionCheckpoint.ts';
@@ -12,8 +16,19 @@ import {
 import SortingIndex from './SortingIndex.tsx';
 
 export default function SortingIndices() {
-	const pythonCodeAnalysisResult: CodeAnalysisResult = useApplicationStore(state => state.pythonCodeAnalysisResult);
-	const executionHistory: ExecutionHistory = useApplicationStore(state => state.executionHistory);
+	const {
+		pythonCodeAnalysisResult,
+		executionHistory
+	}: {
+		pythonCodeAnalysisResult: CodeAnalysisResult
+		executionHistory: ExecutionHistory
+	} = useApplicationStore(
+		useShallow(state => ({
+			pythonCodeAnalysisResult : state.pythonCodeAnalysisResult,
+			executionHistory : state.executionHistory
+		}))
+	);
+
 	const executionHistoryPosition: number = useApplicationStore(state => state.executionHistoryPosition);
 	const executionOperationState: ExecutionOperationState = useApplicationStore(state => state.executionOperationState);
 
@@ -40,16 +55,34 @@ export default function SortingIndices() {
 					pythonCodeAnalysisResult.visualizedVariableMap[checkpoint.lineRange?.start || -1]
 						.filter((variable: Variable) => variable.identifier in configuration.levelDistribution)
 						.map((variable: Variable) =>
-							<SortingIndex
-								key={variable.identifier}
-								variable={variable}
-								valueGetter={() => parseInt(checkpoint.scopeLocals[variable.name])}
-								level={configuration.levelDistribution[variable.identifier]}
-								variableCount={variableCount}
-							/>
-						)
+							createSortingIndex(variable, checkpoint, configuration, variableCount))
 				)
 			}
 		</group>
+	);
+}
+
+function createSortingIndex(
+	variable: Variable,
+	checkpoint: ExecutionCheckpoint,
+	configuration: VisualizedVariablesConfiguration,
+	variableCount: number
+): SortingIndex | null {
+	let value: number;
+
+	try {
+		value = parseInt(checkpoint.scopeLocals[variable.name]);
+	} catch (error) {
+		return null;
+	}
+
+	return (
+		<SortingIndex
+			key={variable.identifier}
+			variable={variable}
+			value={value}
+			level={configuration.levelDistribution[variable.identifier]}
+			variableCount={variableCount}
+		/>
 	);
 }

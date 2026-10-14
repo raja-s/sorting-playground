@@ -2,7 +2,7 @@
 import { type RefObject, useCallback, useEffect, useMemo, useRef } from 'react';
 import * as React from 'react';
 
-import { shallow } from 'zustand/shallow';
+import { shallow, useShallow } from 'zustand/shallow';
 
 import { useFrame, useThree } from '@react-three/fiber';
 import { useTexture } from '@react-three/drei';
@@ -87,69 +87,69 @@ const RANKS = [
 	'Eight', 'Nine', 'Ten', 'Jack', 'Queen', 'King',
 ];
 
-const cardTextureUrls = [
-	cardBackUrl,
+const cardTextureUrls = {
+	back : cardBackUrl,
 
-	cardClubsAceUrl,
-	cardClubsTwoUrl,
-	cardClubsThreeUrl,
-	cardClubsFourUrl,
-	cardClubsFiveUrl,
-	cardClubsSixUrl,
-	cardClubsSevenUrl,
-	cardClubsEightUrl,
-	cardClubsNineUrl,
-	cardClubsTenUrl,
-	cardClubsJackUrl,
-	cardClubsQueenUrl,
-	cardClubsKingUrl,
+	clubsAce   : cardClubsAceUrl,
+	clubsTwo   : cardClubsTwoUrl,
+	clubsThree : cardClubsThreeUrl,
+	clubsFour  : cardClubsFourUrl,
+	clubsFive  : cardClubsFiveUrl,
+	clubsSix   : cardClubsSixUrl,
+	clubsSeven : cardClubsSevenUrl,
+	clubsEight : cardClubsEightUrl,
+	clubsNine  : cardClubsNineUrl,
+	clubsTen   : cardClubsTenUrl,
+	clubsJack  : cardClubsJackUrl,
+	clubsQueen : cardClubsQueenUrl,
+	clubsKing  : cardClubsKingUrl,
 
-	cardDiamondsAceUrl,
-	cardDiamondsTwoUrl,
-	cardDiamondsThreeUrl,
-	cardDiamondsFourUrl,
-	cardDiamondsFiveUrl,
-	cardDiamondsSixUrl,
-	cardDiamondsSevenUrl,
-	cardDiamondsEightUrl,
-	cardDiamondsNineUrl,
-	cardDiamondsTenUrl,
-	cardDiamondsJackUrl,
-	cardDiamondsQueenUrl,
-	cardDiamondsKingUrl,
+	diamondsAce   : cardDiamondsAceUrl,
+	diamondsTwo   : cardDiamondsTwoUrl,
+	diamondsThree : cardDiamondsThreeUrl,
+	diamondsFour  : cardDiamondsFourUrl,
+	diamondsFive  : cardDiamondsFiveUrl,
+	diamondsSix   : cardDiamondsSixUrl,
+	diamondsSeven : cardDiamondsSevenUrl,
+	diamondsEight : cardDiamondsEightUrl,
+	diamondsNine  : cardDiamondsNineUrl,
+	diamondsTen   : cardDiamondsTenUrl,
+	diamondsJack  : cardDiamondsJackUrl,
+	diamondsQueen : cardDiamondsQueenUrl,
+	diamondsKing  : cardDiamondsKingUrl,
 
-	cardSpadesAceUrl,
-	cardSpadesTwoUrl,
-	cardSpadesThreeUrl,
-	cardSpadesFourUrl,
-	cardSpadesFiveUrl,
-	cardSpadesSixUrl,
-	cardSpadesSevenUrl,
-	cardSpadesEightUrl,
-	cardSpadesNineUrl,
-	cardSpadesTenUrl,
-	cardSpadesJackUrl,
-	cardSpadesQueenUrl,
-	cardSpadesKingUrl,
+	spadesAce   : cardSpadesAceUrl,
+	spadesTwo   : cardSpadesTwoUrl,
+	spadesThree : cardSpadesThreeUrl,
+	spadesFour  : cardSpadesFourUrl,
+	spadesFive  : cardSpadesFiveUrl,
+	spadesSix   : cardSpadesSixUrl,
+	spadesSeven : cardSpadesSevenUrl,
+	spadesEight : cardSpadesEightUrl,
+	spadesNine  : cardSpadesNineUrl,
+	spadesTen   : cardSpadesTenUrl,
+	spadesJack  : cardSpadesJackUrl,
+	spadesQueen : cardSpadesQueenUrl,
+	spadesKing  : cardSpadesKingUrl,
 
-	cardHeartsAceUrl,
-	cardHeartsTwoUrl,
-	cardHeartsThreeUrl,
-	cardHeartsFourUrl,
-	cardHeartsFiveUrl,
-	cardHeartsSixUrl,
-	cardHeartsSevenUrl,
-	cardHeartsEightUrl,
-	cardHeartsNineUrl,
-	cardHeartsTenUrl,
-	cardHeartsJackUrl,
-	cardHeartsQueenUrl,
-	cardHeartsKingUrl,
+	heartsAce   : cardHeartsAceUrl,
+	heartsTwo   : cardHeartsTwoUrl,
+	heartsThree : cardHeartsThreeUrl,
+	heartsFour  : cardHeartsFourUrl,
+	heartsFive  : cardHeartsFiveUrl,
+	heartsSix   : cardHeartsSixUrl,
+	heartsSeven : cardHeartsSevenUrl,
+	heartsEight : cardHeartsEightUrl,
+	heartsNine  : cardHeartsNineUrl,
+	heartsTen   : cardHeartsTenUrl,
+	heartsJack  : cardHeartsJackUrl,
+	heartsQueen : cardHeartsQueenUrl,
+	heartsKing  : cardHeartsKingUrl,
 
-	cardJokerUrl
-];
+	Joker : cardJokerUrl
+};
 
-useTexture.preload(cardTextureUrls);
+useTexture.preload(Object.values(cardTextureUrls));
 
 type Materials = { [key: string]: THREE.Material };
 
@@ -163,81 +163,26 @@ type Card = {
 };
 
 type SimulationState = {
-	cards: { [identifier: number]: Card },
-	targetPositions: { [identifier: number]: THREE.Vector3 },
-	targetOpacities: { [identifier: number]: number },
-	targetRotations: { [identifier: number]: number },
-	currentRotations: { [identifier: number]: number }
+	// All arrays here are indexed by
+	// sorting elements' identifiers
+	cards: (Card | null)[],
+	targetPositions: THREE.Vector3[],
+	targetOpacities: number[],
+	targetRotations: number[],
+	currentRotations: number[],
+	positionsConverged: boolean[],
+	opacitiesConverged: boolean[],
+	rotationsConverged: boolean[]
 };
 
 const CARD_WIDTH = 2;
 const CARD_HEIGHT = 3;
 const CARD_THICKNESS = 0.01;
 
-export default function CardsSortingScene() {
+function CardsSortingScene() {
 	const gl = useThree(state => state.gl);
 
-	const textures: { [name: string]: THREE.Texture } = useTexture({
-		back : cardBackUrl,
-
-		clubsAce   : cardClubsAceUrl,
-		clubsTwo   : cardClubsTwoUrl,
-		clubsThree : cardClubsThreeUrl,
-		clubsFour  : cardClubsFourUrl,
-		clubsFive  : cardClubsFiveUrl,
-		clubsSix   : cardClubsSixUrl,
-		clubsSeven : cardClubsSevenUrl,
-		clubsEight : cardClubsEightUrl,
-		clubsNine  : cardClubsNineUrl,
-		clubsTen   : cardClubsTenUrl,
-		clubsJack  : cardClubsJackUrl,
-		clubsQueen : cardClubsQueenUrl,
-		clubsKing  : cardClubsKingUrl,
-
-		diamondsAce   : cardDiamondsAceUrl,
-		diamondsTwo   : cardDiamondsTwoUrl,
-		diamondsThree : cardDiamondsThreeUrl,
-		diamondsFour  : cardDiamondsFourUrl,
-		diamondsFive  : cardDiamondsFiveUrl,
-		diamondsSix   : cardDiamondsSixUrl,
-		diamondsSeven : cardDiamondsSevenUrl,
-		diamondsEight : cardDiamondsEightUrl,
-		diamondsNine  : cardDiamondsNineUrl,
-		diamondsTen   : cardDiamondsTenUrl,
-		diamondsJack  : cardDiamondsJackUrl,
-		diamondsQueen : cardDiamondsQueenUrl,
-		diamondsKing  : cardDiamondsKingUrl,
-
-		spadesAce   : cardSpadesAceUrl,
-		spadesTwo   : cardSpadesTwoUrl,
-		spadesThree : cardSpadesThreeUrl,
-		spadesFour  : cardSpadesFourUrl,
-		spadesFive  : cardSpadesFiveUrl,
-		spadesSix   : cardSpadesSixUrl,
-		spadesSeven : cardSpadesSevenUrl,
-		spadesEight : cardSpadesEightUrl,
-		spadesNine  : cardSpadesNineUrl,
-		spadesTen   : cardSpadesTenUrl,
-		spadesJack  : cardSpadesJackUrl,
-		spadesQueen : cardSpadesQueenUrl,
-		spadesKing  : cardSpadesKingUrl,
-
-		heartsAce   : cardHeartsAceUrl,
-		heartsTwo   : cardHeartsTwoUrl,
-		heartsThree : cardHeartsThreeUrl,
-		heartsFour  : cardHeartsFourUrl,
-		heartsFive  : cardHeartsFiveUrl,
-		heartsSix   : cardHeartsSixUrl,
-		heartsSeven : cardHeartsSevenUrl,
-		heartsEight : cardHeartsEightUrl,
-		heartsNine  : cardHeartsNineUrl,
-		heartsTen   : cardHeartsTenUrl,
-		heartsJack  : cardHeartsJackUrl,
-		heartsQueen : cardHeartsQueenUrl,
-		heartsKing  : cardHeartsKingUrl,
-
-		Joker : cardJokerUrl
-	});
+	const textures: { [name: string]: THREE.Texture } = useTexture(cardTextureUrls);
 
 	useEffect(() => {
 		Object.values(textures).forEach((texture: THREE.Texture) => {
@@ -273,41 +218,18 @@ export default function CardsSortingScene() {
 		return materialsObject;
 	}, [ textures ]);
 
-	const sortingList: SortingList = useApplicationStore(state => state.sortingList);
+	const sortingList: SortingList = useApplicationStore(useShallow(state => state.sortingList));
 
 	const simulationStateRef: RefObject<SimulationState> = useRef({
-		cards : {},
-		targetPositions : {},
-		targetOpacities : {},
-		targetRotations : {},
-		currentRotations : {}
+		cards : [],
+		targetPositions : [],
+		targetOpacities : [],
+		targetRotations : [],
+		currentRotations : [],
+		positionsConverged : [],
+		opacitiesConverged : [],
+		rotationsConverged : []
 	});
-
-	const registerCard = useCallback(
-		(
-			identifier: number,
-			cardGroup: THREE.Group,
-			faceMaterial: THREE.Material,
-			backMaterial: THREE.Material
-		) => {
-			if (cardGroup == null) {
-				simulationStateRef.current.cards[identifier].materials.face.dispose();
-				simulationStateRef.current.cards[identifier].materials.back.dispose();
-				delete simulationStateRef.current.cards[identifier];
-			} else {
-				simulationStateRef.current.cards[identifier] = {
-					identifier,
-					groupElement : cardGroup,
-					materials : {
-						face : faceMaterial,
-						back : backMaterial
-					}
-				};
-				simulationStateRef.current.currentRotations[identifier] = 0;
-			}
-		},
-		[]
-	);
 
 	useEffect(() => {
 		const unsubscribe = useApplicationStore.subscribe(
@@ -351,7 +273,8 @@ export default function CardsSortingScene() {
 					sortingList,
 					executionOperationState
 				)
-			}
+			},
+			{ equalityFn: shallow }
 		);
 		return unsubscribe;
 	}, []);
@@ -362,22 +285,19 @@ export default function CardsSortingScene() {
 
 	return (
 		<group>
-			{sortingList.map((element, index) =>
-				createCard(registerCard, element, index, materials))}
+			{sortingList.map((element: SortingElement, index: number) =>
+				createCard(element, index, materials, simulationStateRef))}
 		</group>
 	);
 }
 
+export default React.memo(CardsSortingScene);
+
 function createCard(
-	registerCard: (
-		identifier: number,
-		cardGroup: THREE.Group,
-		faceMaterial: THREE.Material,
-		backMaterial: THREE.Material
-	) => void,
 	element: SortingElement,
 	index: number,
-	materials: Materials
+	materials: Materials,
+	simulationStateRef: RefObject<SimulationState>
 ): React.JSX.Element {
 	const value: number = element.value as number;
 
@@ -388,7 +308,14 @@ function createCard(
 		<group
 			key={element.identifier}
 			ref={(cardGroup: THREE.Group) => {
-				registerCard(element.identifier, cardGroup, faceMaterial, backMaterial);
+				registerCard(
+					element.identifier,
+					index,
+					cardGroup,
+					faceMaterial,
+					backMaterial,
+					simulationStateRef
+				);
 			}}
 			position={[ index, 0, CARD_THICKNESS * index * 2 ]}
 		>
@@ -400,6 +327,48 @@ function createCard(
 			</mesh>
 		</group>
 	);
+}
+
+function registerCard(
+	identifier: number,
+	index: number,
+	cardGroup: THREE.Group,
+	faceMaterial: THREE.Material,
+	backMaterial: THREE.Material,
+	simulationStateRef: RefObject<SimulationState>
+): void {
+	const simulationState: SimulationState = simulationStateRef.current;
+
+	if (cardGroup != null) {
+		simulationState.cards[identifier] = {
+			identifier,
+			groupElement : cardGroup,
+			materials : {
+				face : faceMaterial,
+				back : backMaterial
+			}
+		};
+
+		if (simulationState.targetPositions[identifier] != null) {
+			simulationState.targetPositions[identifier]
+				.set(index, 0, CARD_THICKNESS * index * 2);
+		} else {
+			simulationState.targetPositions[identifier] =
+				new THREE.Vector3(index, 0, CARD_THICKNESS * index * 2);
+		}
+
+		simulationState.targetOpacities[identifier] = 1;
+		simulationState.targetRotations[identifier] = 0;
+		simulationState.currentRotations[identifier] = 0;
+
+		simulationState.positionsConverged[identifier] = false;
+		simulationState.opacitiesConverged[identifier] = false;
+		simulationState.rotationsConverged[identifier] = false;
+	} else if (simulationState.cards[identifier] != null) {
+		simulationState.cards[identifier].materials.face.dispose();
+		simulationState.cards[identifier].materials.back.dispose();
+		simulationState.cards[identifier] = null;
+	}
 }
 
 function handleStateChangeExecutionRunning(
@@ -417,15 +386,23 @@ function handleStateChangeExecutionRunning(
 		return;
 	}
 
-	for (const identifier in simulationState.cards) {
-		simulationState.targetPositions[identifier] =
-			simulationState.cards[identifier].groupElement.position.clone();
-		simulationState.targetPositions[identifier].setY(1);
+	for (let identifier = 0 ; identifier < simulationState.cards.length ; identifier++) {
+		if (simulationState.cards[identifier] == null) {
+			continue;
+		}
 
+		simulationState.targetPositions[identifier]
+			.copy(simulationState.cards[identifier].groupElement.position);
+
+		simulationState.targetPositions[identifier].setY(1);
 		simulationState.targetOpacities[identifier] = 0;
 		simulationState.targetRotations[identifier] =
 			!onlyRevealComparedCards || executionOperationState === 'finished' &&
 				executionHistoryPosition === executionHistory.length ? 0 : Math.PI;
+
+		simulationState.positionsConverged[identifier] = false;
+		simulationState.opacitiesConverged[identifier] = false;
+		simulationState.rotationsConverged[identifier] = false;
 	}
 
 	const executionCheckpoint: ExecutionCheckpoint =
@@ -436,12 +413,11 @@ function handleStateChangeExecutionRunning(
 
 	executionCheckpoint.sortingList.forEach(
 		(element: SortingElement, index: number) => {
-			simulationState.targetPositions[element.identifier] =
-				new THREE.Vector3(
-					index,
-					executionCheckpoint.sortingElementLevels[index],
-					CARD_THICKNESS * index * 2
-				);
+			simulationState.targetPositions[element.identifier].set(
+				index,
+				executionCheckpoint.sortingElementLevels[index],
+				CARD_THICKNESS * index * 2
+			);
 
 			simulationState.targetOpacities[element.identifier] =
 				1 / (executionCheckpoint.sortingElementLevels[index] + 1);
@@ -451,9 +427,12 @@ function handleStateChangeExecutionRunning(
 				activeComparison != null &&
 				cardIsRevealed(element.identifier, activeComparison)
 			) {
-				simulationState.targetPositions[element.identifier].setY(1); // Testing
 				simulationState.targetRotations[element.identifier] = 0;
+				simulationState.rotationsConverged[element.identifier] = false;
 			}
+
+			simulationState.positionsConverged[element.identifier] = false;
+			simulationState.opacitiesConverged[element.identifier] = false;
 		}
 	);
 }
@@ -467,14 +446,22 @@ function handleStateChangeExecutionStopped(
 		return;
 	}
 
-	simulationState.targetPositions = {};
 	sortingList.forEach((element: SortingElement, index: number) => {
-		simulationState.targetPositions[element.identifier] =
-			new THREE.Vector3(index, 0, CARD_THICKNESS * index * 2);
+		if (simulationState.targetPositions[element.identifier] == null) {
+			simulationState.targetPositions[element.identifier] =
+				new THREE.Vector3(index, 0, CARD_THICKNESS * index * 2);
+		} else {
+			simulationState.targetPositions[element.identifier]
+				.set(index, 0, CARD_THICKNESS * index * 2);
+		}
+
+		simulationState.positionsConverged[element.identifier] = false;
 
 		if (element.identifier in simulationState.cards) {
 			simulationState.targetOpacities[element.identifier] = 1;
 			simulationState.targetRotations[element.identifier] = 0;
+			simulationState.opacitiesConverged[element.identifier] = false;
+			simulationState.rotationsConverged[element.identifier] = false;
 		}
 	});
 }
@@ -482,84 +469,68 @@ function handleStateChangeExecutionStopped(
 function handleFrame(simulationState: SimulationState, delta: number): void {
 	const alpha = 1 - Math.exp(-8 * delta);
 
-	for (const identifier in simulationState.targetPositions) {
-		const cardGroup: THREE.Group = simulationState.cards[identifier]?.groupElement;
-
-		if (cardGroup == null) {
+	for (let identifier = 0 ; identifier < simulationState.cards.length ; identifier++) {
+		if (simulationState.cards[identifier] == null) {
 			unregisterCard(simulationState, identifier);
 			continue;
 		}
 
-		const targetPosition: THREE.Vector3 = simulationState.targetPositions[identifier];
+		const cardGroup: THREE.Group = simulationState.cards[identifier].groupElement;
 
-		if (targetPosition.distanceTo(cardGroup.position) < STABILIZATION_THRESHOLD) {
-			cardGroup.position.x = targetPosition.x;
-			cardGroup.position.y = targetPosition.y;
-			cardGroup.position.z = targetPosition.z;
-			delete simulationState.targetPositions[identifier];
-		} else {
-			cardGroup.position.x = THREE.MathUtils.lerp(cardGroup.position.x, targetPosition.x, alpha);
-			cardGroup.position.y = THREE.MathUtils.lerp(cardGroup.position.y, targetPosition.y, alpha);
-			cardGroup.position.z = THREE.MathUtils.lerp(cardGroup.position.z, targetPosition.z, alpha);
-		}
-	}
+		if (!simulationState.positionsConverged[identifier]) {
+			const targetPosition: THREE.Vector3 = simulationState.targetPositions[identifier];
 
-	for (const identifier in simulationState.targetOpacities) {
-		const cardGroup: THREE.Group = simulationState.cards[identifier]?.groupElement;
-
-		if (cardGroup == null) {
-			unregisterCard(simulationState, identifier);
-			continue;
+			if (targetPosition.distanceTo(cardGroup.position) < STABILIZATION_THRESHOLD) {
+				cardGroup.position.copy(targetPosition);
+				simulationState.positionsConverged[identifier] = true;
+			} else {
+				cardGroup.position.lerp(targetPosition, alpha);
+			}
 		}
 
-		const targetOpacity: number = simulationState.targetOpacities[identifier];
-		const currentOpacity: number = getCardOpacity(simulationState, identifier);
+		if (!simulationState.opacitiesConverged[identifier]) {
+			const targetOpacity: number = simulationState.targetOpacities[identifier];
+			const currentOpacity: number = getCardOpacity(simulationState, identifier);
 
-		if (Math.abs(targetOpacity - currentOpacity) < STABILIZATION_THRESHOLD) {
-			setCardOpacity(simulationState, identifier, targetOpacity);
-			delete simulationState.targetOpacities[identifier];
-		} else {
-			setCardOpacity(
-				simulationState,
-				identifier,
-				THREE.MathUtils.lerp(currentOpacity, targetOpacity, alpha)
-			);
-		}
-	}
-
-	for (const identifier in simulationState.targetRotations) {
-		const cardGroup: THREE.Group = simulationState.cards[identifier]?.groupElement;
-
-		if (cardGroup == null) {
-			unregisterCard(simulationState, identifier);
-			continue;
-		}
-
-		const targetRotation: number = simulationState.targetRotations[identifier];
-
-		if (Math.abs(targetRotation - simulationState.currentRotations[identifier])
-			< STABILIZATION_THRESHOLD)
-		{
-			simulationState.currentRotations[identifier] = targetRotation;
-			delete simulationState.targetRotations[identifier];
-		} else {
-			simulationState.currentRotations[identifier] =
-				THREE.MathUtils.lerp(
-					simulationState.currentRotations[identifier],
-					targetRotation,
-					alpha
+			if (Math.abs(targetOpacity - currentOpacity) < STABILIZATION_THRESHOLD) {
+				setCardOpacity(simulationState, identifier, targetOpacity);
+				simulationState.opacitiesConverged[identifier] = true;
+			} else {
+				setCardOpacity(
+					simulationState,
+					identifier,
+					THREE.MathUtils.lerp(currentOpacity, targetOpacity, alpha)
 				);
+			}
 		}
 
-		(cardGroup.children[0] as THREE.Mesh).scale.x =
-			Math.abs(Math.cos(simulationState.currentRotations[identifier]));
+		if (!simulationState.rotationsConverged[identifier]) {
+			const targetRotation: number = simulationState.targetRotations[identifier];
 
-		if (simulationState.currentRotations[identifier] >= Math.PI / 2) {
-			(cardGroup.children[0] as THREE.Mesh).material =
-				simulationState.cards[identifier].materials.back;
-		} else {
-			(cardGroup.children[0] as THREE.Mesh).material =
-				simulationState.cards[identifier].materials.face;
+			if (Math.abs(targetRotation - simulationState.currentRotations[identifier])
+				< STABILIZATION_THRESHOLD)
+			{
+				simulationState.currentRotations[identifier] = targetRotation;
+				simulationState.rotationsConverged[identifier] = true;
+			} else {
+				simulationState.currentRotations[identifier] =
+					THREE.MathUtils.lerp(
+						simulationState.currentRotations[identifier],
+						targetRotation,
+						alpha
+					);
+			}
+
+			const cardMesh: THREE.Mesh = cardGroup.children[0] as THREE.Mesh;
+
+			cardMesh.scale.x = Math.abs(Math.cos(
+				simulationState.currentRotations[identifier]));
+
+			if (simulationState.currentRotations[identifier] >= Math.PI / 2) {
+				cardMesh.material = simulationState.cards[identifier].materials.back;
+			} else {
+				cardMesh.material = simulationState.cards[identifier].materials.face;
+			}
 		}
 	}
 }
@@ -573,20 +544,17 @@ function cardIsRevealed(
 }
 
 function unregisterCard(simulationState: SimulationState, identifier: number): void {
-	if (identifier in simulationState.cards) {
-		simulationState.cards[identifier].materials.face.dispose();
-		simulationState.cards[identifier].materials.back.dispose();
-		delete simulationState.cards[identifier];
+	if (simulationState.cards[identifier] == null) {
+		return;
 	}
 
-	delete simulationState.targetPositions[identifier];
-	delete simulationState.targetOpacities[identifier];
-	delete simulationState.targetRotations[identifier];
-	delete simulationState.currentRotations[identifier];
+	simulationState.cards[identifier].materials.face.dispose();
+	simulationState.cards[identifier].materials.back.dispose();
+	simulationState.cards[identifier] = null;
 }
 
 function getCardOpacity(simulationState: SimulationState, identifier: number): number {
-	return simulationState.cards[identifier].materials.face.opacity;
+	return simulationState.cards[identifier]!.materials.face.opacity;
 }
 
 function setCardOpacity(
@@ -594,18 +562,13 @@ function setCardOpacity(
 	identifier: number,
 	opacity: number
 ): void {
-	simulationState.cards[identifier].materials.face.opacity = opacity;
-	simulationState.cards[identifier].materials.back.opacity = opacity;
+	simulationState.cards[identifier]!.materials.face.opacity = opacity;
+	simulationState.cards[identifier]!.materials.back.opacity = opacity;
 
-	const color: THREE.Color = new THREE.Color().setRGB(
-		opacity,
-		opacity,
-		opacity,
-		THREE.SRGBColorSpace
-	);
-
-	(simulationState.cards[identifier].materials.face as THREE.MeshBasicMaterial).color = color;
-	(simulationState.cards[identifier].materials.back as THREE.MeshBasicMaterial).color = color;
+	(simulationState.cards[identifier]!.materials.face as THREE.MeshBasicMaterial).color
+		.setRGB(opacity, opacity, opacity, THREE.SRGBColorSpace);
+	(simulationState.cards[identifier]!.materials.back as THREE.MeshBasicMaterial).color
+		.setRGB(opacity, opacity, opacity, THREE.SRGBColorSpace);
 }
 
 function mapValueToCardKey(value: number): string {
