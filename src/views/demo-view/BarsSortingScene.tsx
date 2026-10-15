@@ -235,7 +235,7 @@ function registerBar(
 
 function handleStateChangeExecutionRunning(
 	simulationState: SimulationState,
-	frame: THREE.Mesh,
+	frame: THREE.Object3D,
 	pythonCodeAnalysisResult: CodeAnalysisResult,
 	executionHistory: ExecutionHistory,
 	executionHistoryPosition: number,
@@ -303,7 +303,7 @@ function handleStateChangeExecutionRunning(
 
 function handleStateChangeExecutionStopped(
 	simulationState: SimulationState,
-	frame: THREE.Mesh,
+	frame: THREE.Object3D,
 	sortingList: SortingList,
 	executionOperationState: ExecutionOperationState
 ): void {
@@ -331,7 +331,7 @@ function handleStateChangeExecutionStopped(
 
 		simulationState.positionsConverged[element.identifier] = false;
 
-		if (element.identifier in simulationState.bars) {
+		if (simulationState.bars[element.identifier] != null) {
 			simulationState.targetOpacities[element.identifier] = 1;
 			simulationState.opacitiesConverged[element.identifier] = false;
 		}

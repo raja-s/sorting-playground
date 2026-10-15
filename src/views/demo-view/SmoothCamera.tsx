@@ -40,6 +40,10 @@ function SmoothCamera(props: SmoothCameraProps) {
 		frameBox.setFromObject(props.sortingSceneFrameRef.current);
 		frameBox.getCenter(sortingSceneFrameCenter);
 
+		if (isNaN(sortingSceneFrameCenter.x)) {
+			return;
+		}
+
 		if (props.sortingIndicesFrameRef.current != null) {
 			frameBox.setFromObject(props.sortingIndicesFrameRef.current);
 			frameBox.getCenter(sortingIndicesFrameCenter);
