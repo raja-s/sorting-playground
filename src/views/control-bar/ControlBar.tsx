@@ -9,13 +9,11 @@ import CircularProgress from '@mui/material/CircularProgress';
 import Divider from '@mui/material/Divider';
 import FormControlLabel from '@mui/material/FormControlLabel';
 import Grid from '@mui/material/Grid';
-import IconButton from '@mui/material/IconButton';
 import MenuItem from '@mui/material/MenuItem';
 import Select from '@mui/material/Select';
 import Slider from '@mui/material/Slider';
 import Snackbar from '@mui/material/Snackbar';
 import Stack from '@mui/material/Stack';
-import Tooltip from '@mui/material/Tooltip';
 import Typography from '@mui/material/Typography';
 
 import DownloadIcon from '@mui/icons-material/Download';
@@ -43,6 +41,8 @@ import type {
 import { type ExecutionHistory } from '../../state/ExecutionCheckpoint.ts';
 
 import { ControlIconButton } from './ControlIconButton.tsx';
+
+import TooltipIconButton from '../common/TooltipIconButton.tsx';
 
 export default function ControlBar() {
 	const translate = useTranslation().t;
@@ -154,43 +154,38 @@ export default function ControlBar() {
 					direction='row'
 					columnGap='10px'
 				>
-					<Tooltip title={translate('control_bar.code_controls.open_button')}>
-						<span>
-							<IconButton
-								disabled={executionOperationState !== 'stopped'}
-								onClick={async () => {
-									await openFileToActivePythonCode(
-										executionOperationState,
-										setActivePythonCode,
-										bumpEditorReloadCodeTriggerValue
-									);
-								}}
-							>
-								<FolderIcon fontSize='large' />
-							</IconButton>
-						</span>
-					</Tooltip>
-					<Tooltip title={translate('control_bar.code_controls.download_button')}>
-						<IconButton
-							onClick={async () => {
-								await saveActivePythonCodeToFile(activePythonCode);
-							}}
-						>
-							<DownloadIcon fontSize='large' />
-						</IconButton>
-					</Tooltip>
-					<Tooltip title={translate('control_bar.code_controls.share_button')}>
-						<IconButton
-							onClick={async () => {
-								await generateAndCopyShareLink(
-									generateShareLink,
-									setShareLinkCopiedSnackbarOpen
-								);
-							}}
-						>
-							<ShareIcon fontSize='large' />
-						</IconButton>
-					</Tooltip>
+					<TooltipIconButton
+						tooltipTranslationIdentifier='control_bar.code_controls.open_button'
+						disabled={executionOperationState !== 'stopped'}
+						onClick={async () => {
+							await openFileToActivePythonCode(
+								executionOperationState,
+								setActivePythonCode,
+								bumpEditorReloadCodeTriggerValue
+							);
+						}}
+					>
+						<FolderIcon fontSize='large' />
+					</TooltipIconButton>
+					<TooltipIconButton
+						tooltipTranslationIdentifier='control_bar.code_controls.download_button'
+						onClick={async () => {
+							await saveActivePythonCodeToFile(activePythonCode);
+						}}
+					>
+						<DownloadIcon fontSize='large' />
+					</TooltipIconButton>
+					<TooltipIconButton
+						tooltipTranslationIdentifier='control_bar.code_controls.share_button'
+						onClick={async () => {
+							await generateAndCopyShareLink(
+								generateShareLink,
+								setShareLinkCopiedSnackbarOpen
+							);
+						}}
+					>
+						<ShareIcon fontSize='large' />
+					</TooltipIconButton>
 					<Snackbar
 						open={shareLinkCopiedSnackbarOpen}
 						anchorOrigin={{ vertical: 'top', horizontal: 'right' }}

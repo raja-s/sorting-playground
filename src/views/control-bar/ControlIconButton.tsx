@@ -12,7 +12,7 @@ type ControlIconButtonProps = {
 	color?: string,
 	tooltipTitle: string,
 	disabled?: boolean,
-	onClick: (() => void),
+	onClick: () => void,
 	children: React.JSX.Element
 };
 

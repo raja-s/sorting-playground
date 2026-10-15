@@ -4,8 +4,6 @@ import { type RefObject, useEffect, useMemo, useRef, useState } from 'react';
 
 import { shallow } from 'zustand/shallow';
 
-import { useTranslation } from 'react-i18next';
-
 import { EditorView, ViewUpdate, keymap } from '@codemirror/view';
 import { type ChangeSpec, EditorState, type Extension } from '@codemirror/state';
 import { defaultKeymap } from '@codemirror/commands';

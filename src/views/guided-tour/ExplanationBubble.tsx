@@ -4,8 +4,6 @@ import { useRef } from 'react';
 import Card from '@mui/material/Card';
 import CardActions from '@mui/material/CardActions';
 import CardContent from '@mui/material/CardContent';
-import IconButton from '@mui/material/IconButton';
-import Tooltip from '@mui/material/Tooltip';
 import Typography from '@mui/material/Typography';
 
 import DoneIcon from '@mui/icons-material/Done';
@@ -13,6 +11,8 @@ import NavigateBeforeIcon from '@mui/icons-material/NavigateBefore';
 import NavigateNextIcon from '@mui/icons-material/NavigateNext';
 
 import { useTranslation } from 'react-i18next';
+
+import TooltipIconButton from '../common/TooltipIconButton.tsx';
 
 export type ExplanationBubbleProps = {
 	placementParameters: BubblePlacementParameters,
@@ -75,13 +75,12 @@ export default function ExplanationBubble(props: ExplanationBubbleProps) {
 				}}
 			>
 				{props.stepNumber > 1 && (
-					<Tooltip title={translate('guided_tour.previous_button')}>
-						<IconButton
-							onClick={() => { props.moveToPreviousStep(); }}
-						>
-							<NavigateBeforeIcon fontSize='large' />
-						</IconButton>
-					</Tooltip>
+					<TooltipIconButton
+						tooltipTranslationIdentifier='guided_tour.previous_button'
+						onClick={() => { props.moveToPreviousStep(); }}
+					>
+						<NavigateBeforeIcon fontSize='large' />
+					</TooltipIconButton>
 				)}
 				<Typography
 					marginTop='3px'
@@ -95,17 +94,15 @@ export default function ExplanationBubble(props: ExplanationBubbleProps) {
 						userSelect: 'none'
 					}}
 				>{props.stepNumber} / {props.totalSteps}</Typography>
-				<Tooltip
-					title={translate(isLastStep ?
-						'guided_tour.finish_button' : 'guided_tour.next_button')}
+				<TooltipIconButton
+					tooltipTranslationIdentifier={isLastStep ?
+						'guided_tour.finish_button' : 'guided_tour.next_button'}
+					onClick={() => { props.moveToNextStep(); }}
 				>
-					<IconButton
-						onClick={() => { props.moveToNextStep(); }}
-					>{isLastStep ?
+					{isLastStep ?
 						<DoneIcon fontSize='large' color='primary' /> :
-						<NavigateNextIcon fontSize='large' />
-					}</IconButton>
-				</Tooltip>
+						<NavigateNextIcon fontSize='large' />}
+				</TooltipIconButton>
 			</CardActions>
 		</Card>
 	);

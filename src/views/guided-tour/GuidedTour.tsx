@@ -2,15 +2,13 @@
 import { useState } from 'react';
 
 import Box from '@mui/material/Box';
-import IconButton from '@mui/material/IconButton';
-import Tooltip from '@mui/material/Tooltip';
 
 import MeetingRoomIcon from '@mui/icons-material/MeetingRoom';
 
 import Spotlight from './Spotlight.tsx';
 import ExplanationBubble, { type BubblePlacementParameters } from './ExplanationBubble.tsx';
 
-import { useTranslation } from 'react-i18next';
+import TooltipIconButton from '../common/TooltipIconButton.tsx';
 
 export type GuidedTourProps = {
 	isOn: boolean,
@@ -94,8 +92,6 @@ const INITIAL_STATE: State = {
 };
 
 export default function GuidedTour(props: GuidedTourProps) {
-	const translate = useTranslation().t;
-
 	const [ state, setState ] = useState<State>(INITIAL_STATE);
 
 	const [ bubblePlacementParameters, setBubblePlacementParameters ] =
@@ -181,19 +177,16 @@ export default function GuidedTour(props: GuidedTourProps) {
 					boxShadow: '0 0 50px #a0a0a0'
 				}}
 			>
-				<Tooltip
-					placement='auto'
-					title={translate('guided_tour.leave_button')}
+				<TooltipIconButton
+					tooltipTranslationIdentifier='guided_tour.leave_button'
+					tooltipPlacement='auto'
+					onClick={() => {
+						props.onEnd();
+						setState(INITIAL_STATE);
+					}}
 				>
-					<IconButton
-						onClick={() => {
-							props.onEnd();
-							setState(INITIAL_STATE);
-						}}
-					>
-						<MeetingRoomIcon fontSize='large' />
-					</IconButton>
-				</Tooltip>
+					<MeetingRoomIcon fontSize='large' />
+				</TooltipIconButton>
 			</Box>
 		</>
 	);
