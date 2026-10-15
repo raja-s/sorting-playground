@@ -21,6 +21,10 @@ import {
 	getActiveComparison
 } from './sortingSceneUtilities.ts';
 
+export type BarsSortingSceneProps = {
+	frameRef: RefObject<THREE.Object3D>
+};
+
 type Bar = {
 	identifier: number,
 	groupElement: THREE.Group
@@ -41,7 +45,7 @@ type BarAndLabelColors = {
 	label: string
 };
 
-function BarsSortingScene() {
+function BarsSortingScene(props: BarsSortingSceneProps) {
 	const {
 		sortingList,
 		sortingListBounds
@@ -81,6 +85,7 @@ function BarsSortingScene() {
 			]) => {
 				handleStateChangeExecutionRunning(
 					simulationStateRef.current,
+					props.frameRef.current,
 					pythonCodeAnalysisResult,
 					executionHistory,
 					executionHistoryPosition,
@@ -101,6 +106,7 @@ function BarsSortingScene() {
 			([sortingList, executionOperationState]) => {
 				handleStateChangeExecutionStopped(
 					simulationStateRef.current,
+					props.frameRef.current,
 					sortingList,
 					executionOperationState
 				)
@@ -116,15 +122,33 @@ function BarsSortingScene() {
 
 	return sortingListBounds == null ? null : (
 		<group>
-			{sortingList.map((element: SortingElement, index: number) =>
-				createBar(
-					element,
-					index,
-					sortingListBounds,
-					barsColored,
-					simulationStateRef
-				)
-			)}
+			<mesh
+				ref={props.frameRef}
+				position={[
+					(sortingList.length - 1) / 2,
+					sortingListBounds.maximum / 2,
+					-1
+				]}
+				scale={[
+					sortingList.length,
+					sortingListBounds.maximum,
+					0
+				]}
+				visible={false}
+			>
+				<planeGeometry args={[ 1, 1 ]} />
+			</mesh>
+			<group>
+				{sortingList.map((element: SortingElement, index: number) =>
+					createBar(
+						element,
+						index,
+						sortingListBounds,
+						barsColored,
+						simulationStateRef
+					)
+				)}
+			</group>
 		</group>
 	);
 }
@@ -212,6 +236,7 @@ function registerBar(
 
 function handleStateChangeExecutionRunning(
 	simulationState: SimulationState,
+	frame: THREE.Mesh,
 	pythonCodeAnalysisResult: CodeAnalysisResult,
 	executionHistory: ExecutionHistory,
 	executionHistoryPosition: number,
@@ -245,6 +270,16 @@ function handleStateChangeExecutionRunning(
 	const activeComparison: ActiveSortingListComparison | null =
 		getActiveComparison(pythonCodeAnalysisResult, executionCheckpoint);
 
+	const maximumValue: number = Math.max(
+		...executionCheckpoint.sortingList
+			.map((element: SortingElement) => element.value)
+	);
+
+	frame.position.x = (executionCheckpoint.sortingList.length - 1) / 2;
+	frame.position.y = maximumValue / 2;
+	frame.scale.x = executionCheckpoint.sortingList.length;
+	frame.scale.y = maximumValue;
+
 	executionCheckpoint.sortingList.forEach(
 		(element: SortingElement, index: number) => {
 			simulationState.targetPositions[element.identifier]
@@ -269,12 +304,23 @@ function handleStateChangeExecutionRunning(
 
 function handleStateChangeExecutionStopped(
 	simulationState: SimulationState,
+	frame: THREE.Mesh,
 	sortingList: SortingList,
 	executionOperationState: ExecutionOperationState
 ): void {
 	if (executionOperationState !== 'stopped') {
 		return;
 	}
+
+	const maximumValue: number = Math.max(
+		...sortingList
+			.map((element: SortingElement) => element.value)
+	);
+
+	frame.position.x = (sortingList.length - 1) / 2;
+	frame.position.y = maximumValue / 2;
+	frame.scale.x = sortingList.length;
+	frame.scale.y = maximumValue;
 
 	sortingList.forEach((element: SortingElement, index: number) => {
 		if (simulationState.targetPositions[element.identifier] == null) {

@@ -1,5 +1,5 @@
 
-import { type RefObject, useCallback, useEffect, useMemo, useRef } from 'react';
+import { type RefObject, useEffect, useMemo, useRef } from 'react';
 import * as React from 'react';
 
 import { shallow, useShallow } from 'zustand/shallow';
@@ -81,6 +81,37 @@ import cardHeartsKingUrl  from '../../assets/cards/h_k.png';
 
 import cardJokerUrl   from '../../assets/cards/joker.png';
 
+export type CardsSortingSceneProps = {
+	frameRef: RefObject<THREE.Object3D>
+};
+
+type Materials = { [key: string]: THREE.Material };
+
+type Card = {
+	identifier: number,
+	groupElement: THREE.Group,
+	materials: {
+		face: THREE.Material,
+		back: THREE.Material
+	}
+};
+
+type SimulationState = {
+	// All arrays here are indexed by
+	// sorting elements' identifiers
+	cards: (Card | null)[],
+	targetPositions: THREE.Vector3[],
+	targetOpacities: number[],
+	targetRotations: number[],
+	currentRotations: number[],
+	positionsConverged: boolean[],
+	opacitiesConverged: boolean[],
+	rotationsConverged: boolean[]
+};
+
+const CARD_WIDTH = 2;
+const CARD_HEIGHT = 3;
+const CARD_THICKNESS = 0.01;
 
 const RANKS = [
 	'Ace', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven',
@@ -151,35 +182,20 @@ const cardTextureUrls = {
 
 useTexture.preload(Object.values(cardTextureUrls));
 
-type Materials = { [key: string]: THREE.Material };
+function CardsSortingScene(props: CardsSortingSceneProps) {
+	const sortingList: SortingList = useApplicationStore(useShallow(state => state.sortingList));
 
-type Card = {
-	identifier: number,
-	groupElement: THREE.Group,
-	materials: {
-		face: THREE.Material,
-		back: THREE.Material
-	}
-};
+	const simulationStateRef: RefObject<SimulationState> = useRef({
+		cards : [],
+		targetPositions : [],
+		targetOpacities : [],
+		targetRotations : [],
+		currentRotations : [],
+		positionsConverged : [],
+		opacitiesConverged : [],
+		rotationsConverged : []
+	});
 
-type SimulationState = {
-	// All arrays here are indexed by
-	// sorting elements' identifiers
-	cards: (Card | null)[],
-	targetPositions: THREE.Vector3[],
-	targetOpacities: number[],
-	targetRotations: number[],
-	currentRotations: number[],
-	positionsConverged: boolean[],
-	opacitiesConverged: boolean[],
-	rotationsConverged: boolean[]
-};
-
-const CARD_WIDTH = 2;
-const CARD_HEIGHT = 3;
-const CARD_THICKNESS = 0.01;
-
-function CardsSortingScene() {
 	const gl = useThree(state => state.gl);
 
 	const textures: { [name: string]: THREE.Texture } = useTexture(cardTextureUrls);
@@ -218,19 +234,6 @@ function CardsSortingScene() {
 		return materialsObject;
 	}, [ textures ]);
 
-	const sortingList: SortingList = useApplicationStore(useShallow(state => state.sortingList));
-
-	const simulationStateRef: RefObject<SimulationState> = useRef({
-		cards : [],
-		targetPositions : [],
-		targetOpacities : [],
-		targetRotations : [],
-		currentRotations : [],
-		positionsConverged : [],
-		opacitiesConverged : [],
-		rotationsConverged : []
-	});
-
 	useEffect(() => {
 		const unsubscribe = useApplicationStore.subscribe(
 			state => [
@@ -249,6 +252,7 @@ function CardsSortingScene() {
 			]) => {
 				handleStateChangeExecutionRunning(
 					simulationStateRef.current,
+					props.frameRef.current,
 					pythonCodeAnalysisResult,
 					executionHistory,
 					executionHistoryPosition,
@@ -270,6 +274,7 @@ function CardsSortingScene() {
 			([sortingList, executionOperationState]) => {
 				handleStateChangeExecutionStopped(
 					simulationStateRef.current,
+					props.frameRef.current,
 					sortingList,
 					executionOperationState
 				)
@@ -285,8 +290,26 @@ function CardsSortingScene() {
 
 	return (
 		<group>
-			{sortingList.map((element: SortingElement, index: number) =>
-				createCard(element, index, materials, simulationStateRef))}
+			<mesh
+				ref={props.frameRef}
+				position={[
+					(sortingList.length - 1) * CARD_WIDTH / 4,
+					CARD_HEIGHT / 2,
+					-1
+				]}
+				scale={[
+					(sortingList.length + 1) * CARD_WIDTH / 2,
+					CARD_HEIGHT,
+					0
+				]}
+				visible={false}
+			>
+				<planeGeometry args={[ 1, 1 ]} />
+			</mesh>
+			<group>
+				{sortingList.map((element: SortingElement, index: number) =>
+					createCard(element, index, materials, simulationStateRef))}
+			</group>
 		</group>
 	);
 }
@@ -373,6 +396,7 @@ function registerCard(
 
 function handleStateChangeExecutionRunning(
 	simulationState: SimulationState,
+	frame: THREE.Mesh,
 	pythonCodeAnalysisResult: CodeAnalysisResult,
 	executionHistory: ExecutionHistory,
 	executionHistoryPosition: number,
@@ -411,6 +435,9 @@ function handleStateChangeExecutionRunning(
 	const activeComparison: ActiveSortingListComparison | null =
 		getActiveComparison(pythonCodeAnalysisResult, executionCheckpoint);
 
+	frame.position.x = (executionCheckpoint.sortingList.length - 1) * CARD_WIDTH / 4;
+	frame.scale.x = (executionCheckpoint.sortingList.length + 1) * CARD_WIDTH / 2;
+
 	executionCheckpoint.sortingList.forEach(
 		(element: SortingElement, index: number) => {
 			simulationState.targetPositions[element.identifier].set(
@@ -439,12 +466,16 @@ function handleStateChangeExecutionRunning(
 
 function handleStateChangeExecutionStopped(
 	simulationState: SimulationState,
+	frame: THREE.Mesh,
 	sortingList: SortingList,
 	executionOperationState: ExecutionOperationState
 ): void {
 	if (executionOperationState !== 'stopped') {
 		return;
 	}
+
+	frame.position.x = (sortingList.length - 1) * CARD_WIDTH / 4;
+	frame.scale.x = (sortingList.length + 1) * CARD_WIDTH / 2;
 
 	sortingList.forEach((element: SortingElement, index: number) => {
 		if (simulationState.targetPositions[element.identifier] == null) {

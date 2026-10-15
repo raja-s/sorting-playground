@@ -6,14 +6,22 @@ import { useFrame, useThree } from '@react-three/fiber';
 import * as THREE from 'three';
 
 type SmoothCameraProps = {
-	sceneGroupRef: RefObject<THREE.Group>,
-	sortingSceneGroupRef: RefObject<THREE.Group>
+	sortingSceneFrameRef: RefObject<THREE.Object3D>,
+	sortingIndicesFrameRef: RefObject<THREE.Object3D>
 };
+
+const HORIZONTAL_PADDING = 2;
+const VERTICAL_PADDING_FACTOR = 1.25;
+const MAXIMUM_ZOOM = 150;
+
+const frameBox = new THREE.Box3();
+const frameSize = new THREE.Vector3();
+const sortingIndicesFrameCenter = new THREE.Vector3();
+const sortingSceneFrameCenter = new THREE.Vector3();
+const targetPosition = new THREE.Vector3(0, 0, 100);
 
 function SmoothCamera(props: SmoothCameraProps) {
 	const { camera, size: canvasSize } = useThree();
-
-	const aspectRatio = canvasSize.width / canvasSize.height;
 
 	useEffect(() => {
 		camera.rotation.set(0, 0, 0);
@@ -21,39 +29,56 @@ function SmoothCamera(props: SmoothCameraProps) {
 	}, [camera]);
 
 	useFrame((state, delta) => {
-		if (
-			props.sceneGroupRef.current == null ||
-			props.sortingSceneGroupRef.current == null
-		) {
-			return
+		if (props.sortingSceneFrameRef.current == null) {
+			return;
 		}
-
-		const sceneBox = new THREE.Box3().setFromObject(props.sceneGroupRef.current);
-		const sortingSceneBox = new THREE.Box3().setFromObject(props.sortingSceneGroupRef.current);
-
-		const sceneGroupSize = new THREE.Vector3();
-		sceneBox.getSize(sceneGroupSize);
-
-		const sceneGroupCenter = new THREE.Vector3();
-		sceneBox.getCenter(sceneGroupCenter);
-
-		const sortingSceneGroupSize = new THREE.Vector3();
-		sortingSceneBox.getSize(sortingSceneGroupSize);
-
-		const sortingSceneGroupCenter = new THREE.Vector3();
-		sortingSceneBox.getCenter(sortingSceneGroupCenter);
-
-		const targetPosition = new THREE.Vector3(
-			sortingSceneGroupCenter.x,
-			(sortingSceneGroupCenter.y + 2 * sceneGroupCenter.y) / 3,
-			100
-		);
-		const targetZoom = Math.min(900 / Math.max(sortingSceneGroupSize.x / aspectRatio, sceneGroupSize.y), 75);
 
 		const alpha = 1 - Math.exp(-5 * delta);
 
+		// Camera position
+
+		frameBox.setFromObject(props.sortingSceneFrameRef.current);
+		frameBox.getCenter(sortingSceneFrameCenter);
+
+		if (props.sortingIndicesFrameRef.current != null) {
+			frameBox.setFromObject(props.sortingIndicesFrameRef.current);
+			frameBox.getCenter(sortingIndicesFrameCenter);
+
+			frameBox.expandByObject(props.sortingSceneFrameRef.current);
+		}
+
+		targetPosition.x = sortingSceneFrameCenter.x;
+
+		if (props.sortingIndicesFrameRef.current == null) {
+			targetPosition.y = sortingSceneFrameCenter.y;
+		} else {
+			targetPosition.y =
+				(sortingSceneFrameCenter.y * 9 + sortingIndicesFrameCenter.y) / 10;
+		}
+
 		state.camera.position.lerp(targetPosition, alpha);
-		state.camera.zoom = THREE.MathUtils.lerp(state.camera.zoom, targetZoom, alpha);
+
+		// Camera zoom
+
+		frameBox.getSize(frameSize);
+
+		const boundedWidth = frameSize.x + HORIZONTAL_PADDING;
+		const boundedHeight = frameSize.y * VERTICAL_PADDING_FACTOR;
+
+		const horizontalFitZoom = canvasSize.width / boundedWidth;
+		const verticalFitZoom = canvasSize.height / boundedHeight;
+
+		const targetZoom = Math.min(
+			horizontalFitZoom,
+			verticalFitZoom,
+			MAXIMUM_ZOOM
+		);
+
+		state.camera.zoom = THREE.MathUtils.lerp(
+			state.camera.zoom,
+			targetZoom,
+			alpha
+		);
 
 		state.camera.updateProjectionMatrix();
 	});

@@ -23,8 +23,8 @@ useFont.preload(JETBRAINS_MONO_FONT_PATH);
 function DemoView() {
 	const demoViewMode: DemoViewMode = useApplicationStore(state => state.demoViewMode);
 
-	const sceneGroupRef: RefObject<THREE.Group> = useRef<THREE.Group>();
-	const sortingSceneGroupRef: RefObject<THREE.Group> = useRef<THREE.Group>();
+	const sortingSceneFrameRef: RefObject<THREE.Object3D> = useRef(new THREE.Object3D());
+	const sortingIndicesFrameRef: RefObject<THREE.Object3D> = useRef(new THREE.Object3D());
 
 	return (
 		<Grid
@@ -37,16 +37,22 @@ function DemoView() {
 			>
 				<Suspense fallback={null}>
 					<SmoothCamera
-						sceneGroupRef={sceneGroupRef}
-						sortingSceneGroupRef={sortingSceneGroupRef}
+						sortingSceneFrameRef={sortingSceneFrameRef}
+						sortingIndicesFrameRef={sortingIndicesFrameRef}
 					/>
 					<ambientLight />
-					<group ref={sceneGroupRef}>
-						<group ref={sortingSceneGroupRef}>
-							{demoViewMode === 'bars' && <BarsSortingScene />}
-							{demoViewMode === 'cards' && <CardsSortingScene />}
-						</group>
-						<SortingIndices />
+					<group>
+						{demoViewMode === 'bars' &&
+							<BarsSortingScene
+								frameRef={sortingSceneFrameRef}
+							/>
+						}
+						{demoViewMode === 'cards' &&
+							<CardsSortingScene
+								frameRef={sortingSceneFrameRef}
+							/>
+						}
+						<SortingIndices frameRef={sortingIndicesFrameRef} />
 					</group>
 					{getDummyText()}
 				</Suspense>
