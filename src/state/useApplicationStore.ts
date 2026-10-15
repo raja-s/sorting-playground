@@ -44,7 +44,7 @@ export const useApplicationStore =
 					sortingList: [],
 					sortingListBounds: { minimum: 0, maximum: 0 },
 
-					setSortingListData: (name: string, list: unknown[]) => {
+					setSortingListData: (name: string, list: number[]) => {
 						checkAndSetSortingListData(name, list, getState, setState);
 					},
 
@@ -193,7 +193,7 @@ function delayForExecutionSpeed(speed: number): number {
 
 function checkAndSetSortingListData(
 	name: string,
-	list: unknown[],
+	list: number[],
 	getState: GetState,
 	setState: SetState
 ) {
@@ -217,11 +217,11 @@ function checkAndSetSortingListData(
 
 function setSortingListData(
 	name: string,
-	list: unknown[],
+	list: number[],
 	setState: SetState
 ) {
 	const sortingList: SortingList =
-		list.map((value: unknown, index: number) => ({
+		list.map((value: number, index: number) => ({
 			identifier: index,
 			value
 		}));

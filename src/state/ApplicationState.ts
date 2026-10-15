@@ -23,7 +23,7 @@ export default interface ApplicationState {
 	sortingListVariableName: string;
 	sortingList: SortingList;
 	sortingListBounds: SortingListBounds | null;
-	setSortingListData: (name: string, list: unknown[]) => void;
+	setSortingListData: (name: string, list: number[]) => void;
 
 	pythonExecutionWorkerReady: boolean;
 	pythonExecutionWorker: Worker;

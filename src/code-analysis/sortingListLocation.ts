@@ -6,7 +6,7 @@ import { type AbsolutePosition, type Range } from '../common.ts';
 export type MinimalSortingListData = {
 	assignmentRange: Range<AbsolutePosition>,
 	sortingListVariableName: string,
-	sortingList: unknown[],
+	sortingList: number[],
 	invalidList: boolean
 };
 
@@ -51,7 +51,7 @@ function createSortingListData(
 	sourceCode: string
 ): MinimalSortingListData | null {
 	let sortingListVariableName: string | null = null;
-	let sortingList: unknown[] | null = null;
+	let sortingList: number[] | null = null;
 	let invalidList: boolean = false;
 
 	const cursor: TreeCursor = assignStatementNode.cursor();

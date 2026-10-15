@@ -322,9 +322,7 @@ function createCard(
 	materials: Materials,
 	simulationStateRef: RefObject<SimulationState>
 ): React.JSX.Element {
-	const value: number = element.value as number;
-
-	const faceMaterial: THREE.Material = materials[mapValueToCardKey(value)].clone();
+	const faceMaterial: THREE.Material = materials[mapValueToCardKey(element.value)].clone();
 	const backMaterial: THREE.Material = materials.back.clone();
 
 	return (

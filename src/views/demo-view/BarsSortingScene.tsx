@@ -162,9 +162,8 @@ function createBar(
 	colored: boolean,
 	simulationStateRef: RefObject<SimulationState>
 ): React.JSX.Element {
-	const value: number = element.value as number;
 	const colors: BarAndLabelColors =
-		barAndLabelColors(value, sortingListBounds, colored);
+		barAndLabelColors(element.value, sortingListBounds, colored);
 
 	return (
 		<group
@@ -179,8 +178,8 @@ function createBar(
 			}}
 			position={[index, 0, 0]}
 		>
-			<mesh position={[0, value / 2, 0]}>
-				<planeGeometry args={[0.9, value]} />
+			<mesh position={[0, element.value / 2, 0]}>
+				<planeGeometry args={[0.9, element.value]} />
 				<meshBasicMaterial
 					toneMapped={false}
 					color={colors.bar}
@@ -189,11 +188,11 @@ function createBar(
 				/>
 			</mesh>
 			<Text
-				position={[0, value - 0.1, 0.01]}
+				position={[0, element.value - 0.1, 0.01]}
 				fontSize={0.5}
 				anchorY='top'
 			>
-				{value}
+				{element.value}
 				<meshBasicMaterial
 					toneMapped={false}
 					color={colors.label}

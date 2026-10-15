@@ -146,7 +146,7 @@ function handleViewUpdate(
 	executionOperationState: ExecutionOperationState,
 	setActivePythonCode: (code: string) => void,
 	setState: React.Dispatch<React.SetStateAction<State>>,
-	setSortingListData: (name: string, list: unknown[]) => void
+	setSortingListData: (name: string, list: number[]) => void
 ): void {
 	if (!viewUpdate.docChanged || executionOperationState !== 'stopped') {
 		return;
