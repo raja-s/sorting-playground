@@ -15,6 +15,7 @@ import PlayArrowIcon from '@mui/icons-material/PlayArrow';
 import { useTranslation } from 'react-i18next';
 
 import DynamicLogo from './logo/DynamicLogo.tsx';
+import LanguagePicker from './LanguagePicker.tsx';
 
 import githubLogoUrl from '../assets/github-logo.svg';
 
@@ -164,6 +165,13 @@ export default function SplashDialogAndTopLogo(props: SplashDialogAndTopLogoProp
 							}}
 						/>
 					</a>
+				</Box>
+				<Box
+					position='absolute'
+					top='30px'
+					right='30px'
+				>
+					<LanguagePicker />
 				</Box>
 			</Dialog>
 		</>
