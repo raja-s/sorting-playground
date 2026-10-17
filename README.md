@@ -73,12 +73,12 @@ This materialized in two ways.
 On one hand, the "demo view" to the right takes up half of the window and displays, by default, numbered bars with colors to visually reinforce the natural order.
 Users can easily relate the bars to the list to be sorted in the source code, and modifying that list directly in the source code causes the bars to update immediately in the demo view.
 During execution, the bars in the demo view become tied to the list in memory rather than the one in the source code, causing them to move around as the sorting takes place, allowing users to easily follow the sorting logic.
-The demo view may also display indices based on variables in the source code, which helps users make the connection between the source code and its outcome in memory.
+The demo view may also display live indices based on variables in the source code, which helps users make the connection between the source code and its outcome in memory.
 
 On the other hand, the code editor itself becomes part of the visualization during execution.
 Line highlighting shows users where the execution is at any point in time.
 Moreover, values of variables may be displayed (or "tracked"), appearing as comments in the source code, and will update after every assignment.
-When combined with indices in the demo view, this becomes very effective at helping students make the connection between the source code and its outcome in memory.
+When combined with live indices in the demo view, this becomes very effective at helping students make the connection between the source code and its outcome in memory.
 For example, the user sees `# i = 7` on the header of a for loop and `i = 7` on the eighth (zero-based) bar in the demo view, and they can more easily tell that it is that position that the for-loop iterator variable `i` is representing with its current value.
 
 To make the most out of the live visualization, users had to have total control over the execution.
@@ -117,18 +117,18 @@ You can see both of these in action in the [Quicksort example presented at the b
 
 Finally, given the educational nature of the application, it is essential that algorithms can be easily shared.
 Teachers should be able to easily provide students with full implementations to analyze or even partial implementations to complete as an exercise.
-Students should also be able to share their full or partial solutions with teachers or with each others to investigate and get feedback.
+Students should also be able to share their full or partial solutions with teachers or with each other to investigate and get feedback.
 
 That is why the application provides two options for sharing.
 
 Users can open a Python source file from their device and save the code being edited to a Python source file on their device.
 This allows users to work with source files that they can easily share and even modify outside the application.
-Both opening and saving files can be done using the first two buttons in the bottom left corner (in the control bar) or using `ctrl+o`/`cmd+o` and `ctrl+d`/`cmd+d` respectively.
+Both opening and saving files can be done using the first two buttons in the bottom left corner (in the control bar) or using `ctrl+O`/`cmd+O` and `ctrl+D`/`cmd+D` respectively.
 
 The second option is to obtain a highly compressed URL including the source code as well as a few control bar settings, such as execution speed and the visualization mode (bars or playing cards).
 This second option produces a much more compact content to share, includes both the implementation and the visualization settings, and allows for sharing over email, text message, or on websites.
-All the links to examples given above use URLs obtained through this option.
-Obtaining sharable URLs can be done using the third button in the bottom left corner (in the control bar) or using `ctrl+s`/`cmd+s`.
+All the links to examples given above use URLs obtained with this method.
+Obtaining sharable URLs can be done using the third button in the bottom left corner (in the control bar) or using `ctrl+S`/`cmd+S`.
 This automatically sets the sharable URL in the browser's address bar and copies it to the clipboard.
 
 ## Tech Stack
@@ -139,7 +139,7 @@ The project is built with the following frameworks and tools:
 - [MUI](https://mui.com/) for the high-level UI components
 - [Zustand](https://zustand-demo.pmnd.rs/) for the global state management
 - [CodeMirror](https://codemirror.net/) ([`react-codemirror`](https://uiwjs.github.io/react-codemirror/)) for the code editor
-- [Three.js](https://threejs.org/) ([`react-three/fiber`](https://r3f.docs.pmnd.rs/)) for the visualization
+- [Three.js](https://threejs.org/) ([`react-three/fiber`](https://r3f.docs.pmnd.rs/)) for the visualizations
 - [Pyodide](https://pyodide.com/) for the Python runtime
 - [Vite](https://vite.dev/) for the building and bundling
 - [GitHub Pages](https://docs.github.com/en/pages) for the hosting
