@@ -225,6 +225,9 @@ class PythonCodeAnalyzer extends BaseNodeVisitor {
 	}
 
 	visitFor(forNode: For): void {
+		this.trackedVariablesStack.push([ ...this.trackedVariablesStackHead() ]);
+		this.visualizedVariablesStack.push([ ...this.visualizedVariablesStackHead() ]);
+
 		const variableNodes: Name[] = flattenTuplesAmongNames([ forNode.target ]);
 
 		this.trackedVariablesStackHead().push(
@@ -243,6 +246,9 @@ class PythonCodeAnalyzer extends BaseNodeVisitor {
 		);
 
 		this.genericVisit(forNode);
+
+		this.trackedVariablesStack.pop();
+		this.visualizedVariablesStack.pop();
 	}
 
 	visitClassDef(classNode: ClassDef): void {
