@@ -295,7 +295,12 @@ class PythonCodeAnalyzer extends BaseNodeVisitor {
 	visitIf(ifNode: If): void {
 		const lineNumber: number = ifNode.lineno as number;
 
-		this.addSortingListComparison(ifNode);
+		const comparison: SortingListComparison | null =
+			this.getSortingListComparison(ifNode.test);
+
+		if (comparison != null) {
+			this.comparisonMap[lineNumber] = comparison;
+		}
 
 		if (!('isElif' in ifNode)) {
 			ifNode.isElif = false;
@@ -352,22 +357,41 @@ class PythonCodeAnalyzer extends BaseNodeVisitor {
 		}
 	}
 
-	private addSortingListComparison(ifNode: If): void {
+	private getSortingListComparison(condition: ExprNode): SortingListComparison | null {
 		if (
-			ifNode.test.nodeType !== 'Compare' ||
-			ifNode.test.ops.length !== 1 || (
-				!this.isSortingListAccess(ifNode.test.left) && (
-					ifNode.test.comparators.length !== 1 ||
-					!this.isSortingListAccess(ifNode.test.comparators[0])
+			(
+				condition.nodeType !== 'BoolOp' ||
+					![ 'Or', 'And' ].includes(condition.op.nodeType)
+			) && (
+				condition.nodeType !== 'Compare' ||
+				condition.ops.length !== 1 || (
+					!this.isSortingListAccess(condition.left) && (
+						condition.comparators.length !== 1 ||
+						!this.isSortingListAccess(condition.comparators[0])
+					)
 				)
 			)
 		) {
-			return;
+			return null;
 		}
 
-		const comparison: Partial<SortingListComparison> = {};
+		if (condition.nodeType === 'BoolOp') {
+			const comparison: SortingListComparison | null =
+				this.getSortingListComparison(condition.values[0]);
 
-		switch (ifNode.test.ops[0].nodeType) {
+			return comparison != null ? comparison :
+				this.getSortingListComparison(condition.values[1]);
+		}
+
+		const comparison: SortingListComparison = {
+			operator: '',
+			leftHandSide: '',
+			leftHandSideSortingListIndexExpression: '',
+			rightHandSide: '',
+			rightHandSideSortingListIndexExpression: '',
+		};
+
+		switch (condition.ops[0].nodeType) {
 			case 'Eq': comparison.operator = '=='; break;
 			case 'NotEq': comparison.operator = '!='; break;
 			case 'Gt': comparison.operator = '>'; break;
@@ -376,11 +400,10 @@ class PythonCodeAnalyzer extends BaseNodeVisitor {
 			case 'LtE': comparison.operator = '<='; break;
 		}
 
-		this.setOperandAndIndex(ifNode.test.left, comparison, true);
-		this.setOperandAndIndex(ifNode.test.comparators[0], comparison, false);
+		this.setOperandAndIndex(condition.left, comparison, true);
+		this.setOperandAndIndex(condition.comparators[0], comparison, false);
 
-		const lineNumber: number = ifNode.lineno as number
-		this.comparisonMap[lineNumber] = comparison as SortingListComparison;
+		return comparison;
 	}
 
 	private isSortingListAccess(node: ASTNodeUnion): boolean {

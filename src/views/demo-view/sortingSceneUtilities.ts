@@ -29,20 +29,37 @@ export function getActiveComparison(
 	const activeComparison: Partial<ActiveSortingListComparison> = {};
 
 	if (comparison.leftHandSideSortingListIndexExpression != null) {
-		const leftHandSideSortingListIndex =
+		const leftHandSideSortingListIndex: number | null =
 			evaluateIndexExpression(
 				executionCheckpoint,
 				comparison.leftHandSideSortingListIndexExpression
 			);
+
+		if (leftHandSideSortingListIndex == null ||
+			leftHandSideSortingListIndex < 0 ||
+			leftHandSideSortingListIndex >= executionCheckpoint.sortingList.length)
+		{
+			return null;
+		}
+
 		activeComparison.leftHandSideSortingListIdentifier =
 			executionCheckpoint.sortingList[leftHandSideSortingListIndex].identifier;
 	}
+
 	if (comparison.rightHandSideSortingListIndexExpression != null) {
-		const rightHandSideSortingListIndex =
+		const rightHandSideSortingListIndex: number | null =
 			evaluateIndexExpression(
 				executionCheckpoint,
 				comparison.rightHandSideSortingListIndexExpression
 			);
+
+		if (rightHandSideSortingListIndex == null ||
+			rightHandSideSortingListIndex < 0 ||
+			rightHandSideSortingListIndex >= executionCheckpoint.sortingList.length)
+		{
+			return null;
+		}
+
 		activeComparison.rightHandSideSortingListIdentifier =
 			executionCheckpoint.sortingList[rightHandSideSortingListIndex].identifier;
 	}
@@ -53,7 +70,7 @@ export function getActiveComparison(
 function evaluateIndexExpression(
 	executionCheckpoint: ExecutionCheckpoint,
 	indexExpression: string
-) {
+): number | null {
 	let evaluationCode = '';
 
 	for (const variable in executionCheckpoint.scopeLocals) {
@@ -62,5 +79,9 @@ function evaluateIndexExpression(
 
 	evaluationCode += indexExpression;
 
-	return eval(evaluationCode);
+	try {
+		return eval(evaluationCode);
+	} catch (error) {
+		return null;
+	}
 }
